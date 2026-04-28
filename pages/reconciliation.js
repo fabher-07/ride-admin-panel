@@ -73,7 +73,7 @@ export default function ReconciliationPage() {
       const cashPay = pay.filter(p => p.payment_method === 'cash' && p.status === 'completed')
 
       const totalCharges = cardPay.reduce((s, p) => s + parseFloat(p.amount || 0), 0)
-      const totalCommission = tx.reduce((s, t) => s + parseFloat(t.goit_commission_15_percent || 0), 0)
+      const totalCommission = tx.reduce((s, t) => s + parseFloat(t.ride_commission_15_percent || 0), 0)
       const totalIsr = tx.reduce((s, t) => s + parseFloat(t.isr_retention_1_25_percent || 0), 0)
       const totalIva = tx.reduce((s, t) => s + parseFloat(t.iva_retention_8_percent || 0), 0)
       const totalDriverNet = tx.reduce((s, t) => s + parseFloat(t.driver_net || 0), 0)
@@ -152,7 +152,7 @@ export default function ReconciliationPage() {
                 <p className="text-xs text-gray-400 mt-1">Pr&oacute;xima liquidaci&oacute;n</p>
               </div>
               <div className="bg-white rounded-xl p-5 shadow-sm border border-blue-100">
-                <p className="text-sm text-gray-500">Comisi&oacute;n GO!T (15%)</p>
+                <p className="text-sm text-gray-500">Comisi&oacute;n RIDE (15%)</p>
                 <p className="text-2xl font-bold text-blue-600 mt-1">{formatMXN(summary.totalCommission)}</p>
                 <p className="text-xs text-gray-400 mt-1">{summary.cardTrips + summary.cashTrips} viajes</p>
               </div>
@@ -189,7 +189,7 @@ export default function ReconciliationPage() {
                 </div>
                 <span className="text-2xl text-gray-300">→</span>
                 <div className="text-center p-4 bg-yellow-50 rounded-xl flex-1 min-w-[140px]">
-                  <p className="text-xs text-yellow-600 font-medium">GO!T retiene</p>
+                  <p className="text-xs text-yellow-600 font-medium">RIDE retiene</p>
                   <p className="text-lg font-bold text-yellow-800 mt-1">{formatMXN(summary.totalCommission + summary.totalRetentions)}</p>
                   <p className="text-[10px] text-yellow-600 mt-1">Comisi&oacute;n + ISR + IVA</p>
                 </div>
@@ -294,7 +294,7 @@ export default function ReconciliationPage() {
                           </span>
                         </td>
                         <td className="px-6 py-3 text-sm text-right text-gray-900">{formatMXN(t.fare_total)}</td>
-                        <td className="px-6 py-3 text-sm text-right text-blue-600">{formatMXN(t.goit_commission_15_percent)}</td>
+                        <td className="px-6 py-3 text-sm text-right text-blue-600">{formatMXN(t.ride_commission_15_percent)}</td>
                         <td className="px-6 py-3 text-sm text-right text-gray-500">{formatMXN(t.isr_retention_1_25_percent)}</td>
                         <td className="px-6 py-3 text-sm text-right text-gray-500">{formatMXN(t.iva_retention_8_percent)}</td>
                         <td className="px-6 py-3 text-sm text-right font-semibold text-green-700">{formatMXN(t.driver_net)}</td>

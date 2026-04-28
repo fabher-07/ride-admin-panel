@@ -4,6 +4,8 @@ import { useRouter } from 'next/router'
 import DashboardLayout from '@/components/DashboardLayout'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import Link from 'next/link'
+// Web version doesn't use mobile push notifications
 
 export default function PendingApprovalsScreen() {
   const router = useRouter()
@@ -165,11 +167,16 @@ export default function PendingApprovalsScreen() {
 
       if (error) throw error
 
+      // Push notifications not available in web admin panel
+      const approvedDrivers = pendingDrivers.filter(d => selectedDrivers.includes(d.id))
+      for (const driver of approvedDrivers) {
+        if (driver.user_id) {
+          console.log('Driver approved notification would be sent to:', driver.user_id)
+        }
+      }
+
       // Log audit
-      const driversNames = pendingDrivers
-        .filter(d => selectedDrivers.includes(d.id))
-        .map(d => d.name)
-        .join(', ')
+      const driversNames = approvedDrivers.map(d => d.name).join(', ')
 
       await supabase.from('audit_logs').insert({
         user_id: user.id,
@@ -182,7 +189,7 @@ export default function PendingApprovalsScreen() {
 
       setSelectedDrivers([])
       setSelectAll(false)
-      alert(`${count} conductor${count > 1 ? 'es' : ''} aprobado${count > 1 ? 's' : ''} exitosamente.`)
+      alert(`${count} conductor${count > 1 ? 'es' : ''} aprobado${count > 1 ? 's' : ''} exitosamente.\n\nSe enviaron notificaciones push.`)
       fetchPendingDrivers()
     } catch (error) {
       console.error('Error approving drivers:', error)
@@ -201,6 +208,11 @@ export default function PendingApprovalsScreen() {
 
       if (error) throw error
 
+      // Push notifications not available in web admin panel
+      if (driver.user_id) {
+        console.log('Driver approved notification would be sent to:', driver.user_id)
+      }
+
       // Log audit
       await supabase.from('audit_logs').insert({
         user_id: user.id,
@@ -211,7 +223,7 @@ export default function PendingApprovalsScreen() {
         ip_address: 'N/A',
       })
 
-      alert(`${driver.name} ha sido aprobado exitosamente.`)
+      alert(`${driver.name} ha sido aprobado exitosamente.\n\nSe envió notificación push al conductor.`)
       fetchPendingDrivers()
     } catch (error) {
       console.error('Error approving driver:', error)

@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase'
 
 /**
- * Servicio de Logs de Auditoría para GO!T Admin
+ * Servicio de Logs de Auditoría para RIDE Admin
  * Registra y consulta todas las acciones administrativas
  */
 
@@ -67,7 +67,7 @@ export const logAction = async (userId, action, entityType, entityId, details = 
       .from('audit_logs')
       .insert({
         user_id: userId,
-        user_email: userData?.email || 'unknown@goit.com',
+        user_email: userData?.email || 'unknown@ride.com',
         action,
         category: entityType || 'general',
         entity_type: entityType,

@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase'
 
 /**
- * Servicio de Backup y Restauración para GO!T Admin
+ * Servicio de Backup y Restauración para RIDE Admin
  * Maneja copias de seguridad automáticas y manuales de la base de datos
  */
 
@@ -82,7 +82,7 @@ export const createBackup = async (userId, backupType = 'manual') => {
       .from('audit_logs')
       .insert({
         user_id: userId,
-        user_email: userData?.email || 'system@goit.com',
+        user_email: userData?.email || 'system@ride-app-taxi.com',
         action: 'create_backup',
         category: 'backup',
         entity_type: 'backup',
@@ -128,7 +128,7 @@ export const createBackup = async (userId, backupType = 'manual') => {
  */
 export const downloadBackup = (backupData, filename = null) => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-  const defaultFilename = `goit-backup-${timestamp}.json`
+  const defaultFilename = `ride-backup-${timestamp}.json`
   
   const blob = new Blob([JSON.stringify(backupData, null, 2)], {
     type: 'application/json'
@@ -198,7 +198,7 @@ export const deleteBackup = async (backupId, userId) => {
       .from('audit_logs')
       .insert({
         user_id: userId,
-        user_email: userData?.email || 'system@goit.com',
+        user_email: userData?.email || 'system@ride-app-taxi.com',
         action: 'delete_backup',
         category: 'backup',
         entity_type: 'backup',
@@ -265,7 +265,7 @@ export const restoreFromBackup = async (backupData, userId) => {
       .from('audit_logs')
       .insert({
         user_id: userId,
-        user_email: userData?.email || 'system@goit.com',
+        user_email: userData?.email || 'system@ride-app-taxi.com',
         action: 'restore_backup',
         category: 'backup',
         entity_type: 'backup',

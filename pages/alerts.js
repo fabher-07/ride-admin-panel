@@ -1,14 +1,21 @@
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 import DashboardLayout from '@/components/DashboardLayout'
+import { useAuth } from '@/contexts/AuthContext'
+import { useRealtimeAlerts } from '../hooks/useRealtimeAlerts'
+import { resolveAlert, dismissAlert } from '../services/alertsService'
 
 export default function SystemAlertsScreen() {
+  const router = useRouter()
+  const { user } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterType, setFilterType] = useState('all')
+  const { alerts, stats, loading, lastUpdate, refreshAlerts, forceGeneration } = useRealtimeAlerts()
 
-  // Mock data - en producción vendría de Supabase
-  const [alerts, setAlerts] = useState([
+  // Mock data removido - ahora usamos datos reales
+  const [mockAlerts] = useState([
     {
       id: 1,
       type: 'long_trip',
@@ -140,17 +147,12 @@ export default function SystemAlertsScreen() {
     },
   ])
 
-  const [stats, setStats] = useState({
-    total: 7,
-    critical: 1,
-    high: 3,
-    medium: 2,
-    low: 1,
-  })
-
   useEffect(() => {
     setMounted(true)
-  }, [])
+    if (!user) {
+      router.push('/login')
+    }
+  }, [user])
 
   const getAlertConfig = (type) => {
     switch (type) {
@@ -198,6 +200,51 @@ export default function SystemAlertsScreen() {
           borderColor: 'border-yellow-200',
           textColor: 'text-yellow-800',
           label: 'Disputa',
+        }
+      case 'driver_debt':
+        return {
+          icon: '💰',
+          color: 'red',
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-200',
+          textColor: 'text-red-800',
+          label: 'Deuda Crítica',
+        }
+      case 'low_rating':
+        return {
+          icon: '⭐',
+          color: 'orange',
+          bgColor: 'bg-orange-50',
+          borderColor: 'border-orange-200',
+          textColor: 'text-orange-800',
+          label: 'Rating Bajo',
+        }
+      case 'driver_inactive':
+        return {
+          icon: '📍',
+          color: 'yellow',
+          bgColor: 'bg-yellow-50',
+          borderColor: 'border-yellow-200',
+          textColor: 'text-yellow-800',
+          label: 'Conductor Inactivo',
+        }
+      case 'urgent_support':
+        return {
+          icon: '🔔',
+          color: 'red',
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-200',
+          textColor: 'text-red-800',
+          label: 'Soporte Urgente',
+        }
+      case 'expiring_document':
+        return {
+          icon: '📄',
+          color: 'orange',
+          bgColor: 'bg-orange-50',
+          borderColor: 'border-orange-200',
+          textColor: 'text-orange-800',
+          label: 'Documento por Vencer',
         }
       default:
         return {
@@ -256,32 +303,80 @@ export default function SystemAlertsScreen() {
     }
   }
 
-  const handleResolveAlert = (alertId) => {
+  const handleResolveAlert = async (alertId) => {
     if (confirm('¿Marcar esta alerta como resuelta?')) {
-      setAlerts((prev) => prev.map((a) => (a.id === alertId ? { ...a, status: 'resolved' } : a)))
-      alert('Alerta marcada como resuelta')
+      const { error } = await resolveAlert(alertId, user?.id)
+      if (error) {
+        alert('Error al resolver alerta: ' + error.message)
+      } else {
+        alert('Alerta marcada como resuelta')
+        refreshAlerts()
+      }
     }
   }
 
   const handleViewDetails = (alert) => {
-    alert(`Detalles de la alerta:\n\n${JSON.stringify(alert.details, null, 2)}`)
+    // Si hay entidad relacionada, navegar a la página correspondiente
+    if (alert.related_entity_type && alert.related_entity_id) {
+      switch(alert.related_entity_type) {
+        case 'trip':
+          router.push(`/past-trips`)
+          break
+        case 'driver':
+          router.push(`/drivers`)
+          break
+        case 'payment':
+          router.push(`/payments`)
+          break
+        case 'support_ticket':
+          router.push(`/support-tickets`)
+          break
+        default:
+          // Mostrar modal con detalles completos
+          showDetailsModal(alert)
+      }
+    } else {
+      // Mostrar modal con detalles completos
+      showDetailsModal(alert)
+    }
   }
 
-  const filteredAlerts = alerts.filter((alert) => {
+  const showDetailsModal = (alert) => {
+    const detailsText = Object.entries(alert.details || {})
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n')
+    
+    alert(
+      `📋 DETALLES DE LA ALERTA\n\n` +
+      `Tipo: ${alert.type}\n` +
+      `Prioridad: ${alert.priority}\n` +
+      `Título: ${alert.title}\n` +
+      `Descripción: ${alert.description}\n\n` +
+      `INFORMACIÓN ADICIONAL:\n${detailsText}\n\n` +
+      `Estado: ${alert.status}\n` +
+      `Creada: ${new Date(alert.created_at).toLocaleString('es-MX')}`
+    )
+  }
+
+  const filteredAlerts = (alerts || []).filter((alert) => {
     const matchesPriority = filterPriority === 'all' || alert.priority === filterPriority
     const matchesType = filterType === 'all' || alert.type === filterType
-    const matchesStatus = alert.status === 'active'
-    return matchesPriority && matchesType && matchesStatus
+    return matchesPriority && matchesType
   })
 
   const getTimeAgo = (timestamp) => {
-    const minutes = Math.floor((Date.now() - timestamp.getTime()) / 60000)
+    // Manejar tanto objetos Date como strings ISO
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp)
+    const minutes = Math.floor((Date.now() - date.getTime()) / 60000)
     if (minutes < 1) return 'Ahora'
     if (minutes === 1) return 'Hace 1 minuto'
     if (minutes < 60) return `Hace ${minutes} minutos`
     const hours = Math.floor(minutes / 60)
     if (hours === 1) return 'Hace 1 hora'
-    return `Hace ${hours} horas`
+    if (hours < 24) return `Hace ${hours} horas`
+    const days = Math.floor(hours / 24)
+    if (days === 1) return 'Hace 1 día'
+    return `Hace ${days} días`
   }
 
   return (
@@ -299,16 +394,26 @@ export default function SystemAlertsScreen() {
               <h1 className="text-3xl font-bold text-gray-900">Alertas del Sistema</h1>
               {mounted && (
                 <p className="text-gray-600 mt-1">
-                  Última actualización: {new Date().toLocaleTimeString('es-MX')}
+                  Última actualización: {lastUpdate.toLocaleTimeString('es-MX')}
+                  {loading && <span className="ml-2 text-primary">• Actualizando...</span>}
                 </p>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600 font-medium">
-                {stats.critical + stats.high} alertas críticas
-              </span>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={forceGeneration}
+                disabled={loading}
+                className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-yellow-500 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? '🔄 Actualizando...' : '🔄 Verificar Alertas'}
+              </button>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-gray-600 font-medium">
+                  {stats.critical + stats.high} alertas críticas
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -423,10 +528,10 @@ export default function SystemAlertsScreen() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Filtrar por Tipo
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setFilterType('all')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
                     filterType === 'all'
                       ? 'bg-primary text-black'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -436,33 +541,73 @@ export default function SystemAlertsScreen() {
                 </button>
                 <button
                   onClick={() => setFilterType('long_trip')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
                     filterType === 'long_trip'
                       ? 'bg-orange-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Viajes Largos
+                  ⏱️ Viajes
                 </button>
                 <button
                   onClick={() => setFilterType('pending_payment')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
                     filterType === 'pending_payment'
                       ? 'bg-red-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Pagos
+                  💳 Pagos
                 </button>
                 <button
-                  onClick={() => setFilterType('service_down')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    filterType === 'service_down'
+                  onClick={() => setFilterType('driver_debt')}
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    filterType === 'driver_debt'
+                      ? 'bg-red-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  💰 Deudas
+                </button>
+                <button
+                  onClick={() => setFilterType('low_rating')}
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    filterType === 'low_rating'
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  ⭐ Rating
+                </button>
+                <button
+                  onClick={() => setFilterType('driver_inactive')}
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    filterType === 'driver_inactive'
+                      ? 'bg-yellow-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  📍 Inactivos
+                </button>
+                <button
+                  onClick={() => setFilterType('urgent_support')}
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    filterType === 'urgent_support'
                       ? 'bg-red-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Servicios
+                  🔔 Soporte
+                </button>
+                <button
+                  onClick={() => setFilterType('expiring_document')}
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    filterType === 'expiring_document'
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  📄 Documentos
                 </button>
               </div>
             </div>
@@ -503,10 +648,10 @@ export default function SystemAlertsScreen() {
                   </div>
 
                   <div className="text-right">
-                    <p className="text-sm text-gray-600">{getTimeAgo(alert.timestamp)}</p>
+                    <p className="text-sm text-gray-600">{getTimeAgo(alert.created_at)}</p>
                     {mounted && (
                       <p className="text-xs text-gray-500 mt-1">
-                        {alert.timestamp.toLocaleTimeString('es-MX')}
+                        {new Date(alert.created_at).toLocaleTimeString('es-MX')}
                       </p>
                     )}
                   </div>

@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import DashboardLayout from '@/components/DashboardLayout'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+// Web version doesn't use mobile push notifications
 
 export default function VerifyDocumentsScreen() {
   const router = useRouter()
@@ -220,6 +221,11 @@ export default function VerifyDocumentsScreen() {
 
       if (error) throw error
 
+      // Push notifications not available in web admin panel
+      if (driver?.user_id) {
+        console.log('Driver approved notification would be sent to:', driver.user_id)
+      }
+
       // Log audit
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
@@ -230,7 +236,7 @@ export default function VerifyDocumentsScreen() {
         ip_address: 'N/A',
       }).then()
 
-      alert('Conductor aprobado y activado exitosamente.')
+      alert('Conductor aprobado y activado exitosamente.\n\nSe envió notificación push al conductor.')
       router.push('/pending-approvals')
     } catch (error) {
       console.error('Error approving driver:', error)

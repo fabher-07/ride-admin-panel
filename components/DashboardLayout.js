@@ -1,12 +1,17 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import ProtectedRoute from './ProtectedRoute'
+import AdminNotificationToast from './AdminNotificationToast'
+import { useAdminNotifications } from '../hooks/useAdminNotifications'
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const router = useRouter()
   const { user, signOut } = useAuth()
+  const { theme, toggleTheme } = useTheme()
+  const { unreadCount, latestTicket, showNotification, dismissNotification } = useAdminNotifications(user?.id)
 
   const handleLogout = async () => {
     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
@@ -16,7 +21,7 @@ export default function DashboardLayout({ children }) {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 h-full bg-secondary text-white transition-all duration-300 ${
@@ -180,6 +185,28 @@ export default function DashboardLayout({ children }) {
               {sidebarOpen && <span>Facturas CFDI</span>}
             </a>
             <a
+              href="/rewards"
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                router.pathname === '/rewards'
+                  ? 'bg-primary text-black font-medium'
+                  : 'hover:bg-gray-800'
+              }`}
+            >
+              <span className="text-xl">🎁</span>
+              {sidebarOpen && <span>Recompensas</span>}
+            </a>
+            <a
+              href="/assign-rewards"
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                router.pathname === '/assign-rewards'
+                  ? 'bg-primary text-black font-medium'
+                  : 'hover:bg-gray-800'
+              }`}
+            >
+              <span className="text-xl">🏆</span>
+              {sidebarOpen && <span>Asignar Bonos</span>}
+            </a>
+            <a
               href="/disputes"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/disputes'
@@ -233,9 +260,30 @@ export default function DashboardLayout({ children }) {
                   ? 'bg-primary text-black font-medium'
                   : 'hover:bg-gray-800'
               }`}
+              style={{ position: 'relative' }}
             >
               <span className="text-xl">🎫</span>
               {sidebarOpen && <span>Soporte</span>}
+              {unreadCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: sidebarOpen ? '12px' : '8px',
+                    backgroundColor: '#FF3B30',
+                    color: '#fff',
+                    borderRadius: '10px',
+                    padding: '2px 6px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    minWidth: '20px',
+                    textAlign: 'center',
+                    animation: 'pulse 2s infinite'
+                  }}
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </a>
 
             {/* Sistema */}
@@ -288,6 +336,19 @@ export default function DashboardLayout({ children }) {
 
           {/* User Info & Logout */}
           <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-700">
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors mb-3"
+            >
+              <span className="text-xl">{theme === 'dark' ? '☀️' : '🌙'}</span>
+              {sidebarOpen && (
+                <span className="text-sm">
+                  {theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
+                </span>
+              )}
+            </button>
             {user && (
               <>
                 {sidebarOpen && (
@@ -317,6 +378,25 @@ export default function DashboardLayout({ children }) {
       >
         <div className="p-8">{children}</div>
       </main>
+
+      {/* Real-time Notification Toast */}
+      <AdminNotificationToast
+        ticket={latestTicket}
+        show={showNotification}
+        onDismiss={dismissNotification}
+      />
+
+      {/* CSS Animations */}
+      <style jsx global>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+      `}</style>
     </div>
     </ProtectedRoute>
   )

@@ -83,7 +83,7 @@ export default function BackupSecurityScreen() {
     {
       id: 1,
       timestamp: '2026-01-23 07:45',
-      user: 'admin@goit.com',
+      user: 'soporte@ride-app-taxi.com',
       action: 'Aprobó conductor',
       details: 'Juan Pérez (ID: 1234)',
       ip: '192.168.1.100',
@@ -92,7 +92,7 @@ export default function BackupSecurityScreen() {
     {
       id: 2,
       timestamp: '2026-01-23 07:30',
-      user: 'admin@goit.com',
+      user: 'soporte@ride-app-taxi.com',
       action: 'Modificó configuración',
       details: 'Radio de búsqueda: 5km → 7km',
       ip: '192.168.1.100',
@@ -101,7 +101,7 @@ export default function BackupSecurityScreen() {
     {
       id: 3,
       timestamp: '2026-01-23 07:15',
-      user: 'support@goit.com',
+      user: 'soporte@ride-app-taxi.com',
       action: 'Resolvió ticket',
       details: 'TKT-2026-001',
       ip: '192.168.1.105',
@@ -110,7 +110,7 @@ export default function BackupSecurityScreen() {
     {
       id: 4,
       timestamp: '2026-01-23 07:00',
-      user: 'admin@goit.com',
+      user: 'soporte@ride-app-taxi.com',
       action: 'Bloqueó conductor',
       details: 'Carlos López (ID: 5678) - Documento falso',
       ip: '192.168.1.100',
@@ -119,7 +119,7 @@ export default function BackupSecurityScreen() {
     {
       id: 5,
       timestamp: '2026-01-23 06:45',
-      user: 'finance@goit.com',
+      user: 'soporte@ride-app-taxi.com',
       action: 'Exportó reporte',
       details: 'Reporte financiero enero 2026',
       ip: '192.168.1.110',
@@ -128,7 +128,7 @@ export default function BackupSecurityScreen() {
     {
       id: 6,
       timestamp: '2026-01-23 06:30',
-      user: 'admin@goit.com',
+      user: 'soporte@ride-app-taxi.com',
       action: 'Creó campaña',
       details: 'Promoción Verano 2026',
       ip: '192.168.1.100',
@@ -137,7 +137,7 @@ export default function BackupSecurityScreen() {
     {
       id: 7,
       timestamp: '2026-01-23 06:15',
-      user: 'support@goit.com',
+      user: 'soporte@ride-app-taxi.com',
       action: 'Creó ticket',
       details: 'TKT-2026-005',
       ip: '192.168.1.105',
@@ -146,7 +146,7 @@ export default function BackupSecurityScreen() {
     {
       id: 8,
       timestamp: '2026-01-23 06:00',
-      user: 'admin@goit.com',
+      user: 'soporte@ride-app-taxi.com',
       action: 'Actualizó tarifas',
       details: 'Tarifa base: $45 → $50',
       ip: '192.168.1.100',

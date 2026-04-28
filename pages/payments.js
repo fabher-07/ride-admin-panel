@@ -63,7 +63,7 @@ export default function Payments() {
         cashCount: allPayments.filter(p => p.payment_method === 'cash').length,
         cardCount: allPayments.filter(p => p.payment_method === 'card').length,
         totalFare: allPayments.reduce((sum, p) => sum + (p.fare_total || 0), 0),
-        totalCommission: allPayments.reduce((sum, p) => sum + (p.goit_commission_15_percent || 0), 0),
+        totalCommission: allPayments.reduce((sum, p) => sum + (p.ride_commission_15_percent || 0), 0),
       })
 
     } catch (error) {
@@ -99,7 +99,7 @@ export default function Payments() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Comisiones y Pagos</title>
+        <title>RIDE Admin - Comisiones y Pagos</title>
         <meta name="description" content="Gestión de comisiones y pagos por viaje" />
       </Head>
 
@@ -120,7 +120,7 @@ export default function Payments() {
                 <p className="text-sm text-gray-600">Total Transacciones</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
               </div>
-              <div className="text-3xl">�</div>
+              <div className="text-3xl">📈</div>
             </div>
           </div>
 
@@ -159,7 +159,7 @@ export default function Payments() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Comisión GO!T</p>
+                <p className="text-sm text-gray-600">Comisión RIDE</p>
                 <p className="text-2xl font-bold text-purple-600">
                   {formatCurrency(stats.totalCommission)}
                 </p>
@@ -281,7 +281,7 @@ export default function Payments() {
                         {formatCurrency(payment.fare_total)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-purple-600">
-                        {formatCurrency(payment.goit_commission_15_percent)}
+                        {formatCurrency(payment.ride_commission_15_percent)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {formatCurrency(payment.isr_retention_1_25_percent)}
