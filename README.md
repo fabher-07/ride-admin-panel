@@ -1,6 +1,6 @@
-# GO!T Admin Panel
+# RIDE Admin Panel
 
-Panel de administración web para GO!T - Sistema de gestión de taxis.
+Panel de administración web para RIDE - Sistema de gestión de taxis.
 
 ## 🚀 Inicio Rápido
 
