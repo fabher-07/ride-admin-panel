@@ -196,7 +196,7 @@ export default function PassengersScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Gestión de Pasajeros</title>
+        <title>RIDE Admin - Gestión de Pasajeros</title>
         <meta name="description" content="Gestión y administración de pasajeros" />
       </Head>
 

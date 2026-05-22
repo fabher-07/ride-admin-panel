@@ -279,7 +279,7 @@ export default function PendingApprovalsScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Conductores Pendientes de Aprobación</title>
+        <title>RIDE Admin - Conductores Pendientes de Aprobación</title>
         <meta name="description" content="Cola de espera de conductores pendientes" />
       </Head>
 

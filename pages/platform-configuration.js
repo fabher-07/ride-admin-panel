@@ -163,7 +163,7 @@ export default function PlatformConfigurationScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Configuración de la Plataforma</title>
+        <title>RIDE Admin - Configuración de la Plataforma</title>
         <meta name="description" content="Configuración global de la plataforma" />
       </Head>
 

@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "fbfc92af-bd77-4a81-bac7-afd146db4ede"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.wolfs.rideadminpanel",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

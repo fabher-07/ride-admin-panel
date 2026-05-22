@@ -382,7 +382,7 @@ export default function SystemAlertsScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Alertas del Sistema</title>
+        <title>RIDE Admin - Alertas del Sistema</title>
         <meta name="description" content="Alertas y problemas del sistema en tiempo real" />
       </Head>
 

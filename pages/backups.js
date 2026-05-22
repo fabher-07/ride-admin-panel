@@ -151,7 +151,7 @@ export default function BackupsScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Backups y Restauración</title>
+        <title>RIDE Admin - Backups y Restauración</title>
         <meta name="description" content="Gestión de backups de la base de datos" />
       </Head>
 

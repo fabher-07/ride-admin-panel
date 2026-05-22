@@ -144,7 +144,7 @@ export default function RewardsScreen() {
   return (
     <DashboardLayout>
       <Head>
-        <title>Recompensas - GO!T Admin</title>
+        <title>Recompensas - RIDE Admin</title>
       </Head>
 
       <div style={{ padding: '24px' }}>

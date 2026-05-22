@@ -22,10 +22,12 @@ const mapOptions = {
   fullscreenControl: true,
 }
 
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+
 export default function MapView() {
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: 'AIzaSyALX96dRQhZKLXnsmmYH0VK72uLK-mvrQ0',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   })
 
   const [map, setMap] = useState(null)
@@ -33,6 +35,7 @@ export default function MapView() {
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [mapError, setMapError] = useState(false)
 
   const [availableTaxis, setAvailableTaxis] = useState([])
   const [activeTrips, setActiveTrips] = useState([])
@@ -206,6 +209,42 @@ export default function MapView() {
     setMap(null)
   }, [])
 
+  useEffect(() => {
+    if (loadError) {
+      console.error('Google Maps load error:', loadError)
+      setMapError(true)
+    }
+  }, [loadError])
+
+  if (mapError) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[calc(100vh-100px)] bg-gray-50 rounded-lg border border-gray-200">
+          <div className="text-center max-w-md px-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Error al cargar Google Maps</h3>
+            <p className="text-gray-600 mb-4">
+              El mapa no pudo cargarse debido a un problema con la API key de Google Maps.
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left text-sm text-yellow-800">
+              <p className="font-semibold mb-2">Pasos para corregir:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Verifica que la variable <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> esté configurada en <code>.env.local</code></li>
+                <li>En <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a>, asegúrate de que la <strong>Maps JavaScript API</strong> esté habilitada</li>
+                <li>Confirma que la facturación (billing) esté activa en tu proyecto de Google Cloud</li>
+                <li>Agrega <code>admin.ride-app-taxi.com</code> a las restricciones de referrer HTTP</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   if (!isLoaded || loading) {
     return (
       <DashboardLayout>
@@ -222,7 +261,7 @@ export default function MapView() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Mapa en Tiempo Real</title>
+        <title>RIDE Admin - Mapa en Tiempo Real</title>
         <meta name="description" content="Mapa de taxis y viajes en tiempo real" />
       </Head>
 

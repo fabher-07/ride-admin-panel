@@ -57,7 +57,7 @@ export default function ConfigHistoryScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Historial de Configuración</title>
+        <title>RIDE Admin - Historial de Configuración</title>
         <meta name="description" content="Historial de cambios en la configuración" />
       </Head>
 

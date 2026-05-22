@@ -113,16 +113,22 @@ export const updateConfigValue = async (key, value, userId) => {
 export const updateMultipleConfigs = async (configUpdates, userId) => {
   try {
     const updates = []
-    
+
     for (const [key, value] of Object.entries(configUpdates)) {
+      // UPSERT: si la clave no existe, la inserta; si existe, la actualiza.
+      // Esto soluciona el bug donde UPDATE silenciosamente no hacía nada
+      // cuando la fila no existía aún.
       const { error } = await supabase
         .from('platform_config')
-        .update({
-          config_value: value,
-          updated_by: userId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('config_key', key)
+        .upsert(
+          {
+            config_key: key,
+            config_value: value,
+            updated_by: userId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'config_key' }
+        )
 
       if (error) throw error
 

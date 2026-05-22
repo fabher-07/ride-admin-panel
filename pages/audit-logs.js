@@ -162,7 +162,7 @@ export default function AuditLogsScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Logs de Auditoría</title>
+        <title>RIDE Admin - Logs de Auditoría</title>
         <meta name="description" content="Historial completo de acciones administrativas" />
       </Head>
 

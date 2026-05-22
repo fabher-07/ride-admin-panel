@@ -270,7 +270,7 @@ export default function PastTripsScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Viajes Pasados</title>
+        <title>RIDE Admin - Viajes Pasados</title>
         <meta name="description" content="Historial de viajes y operaciones" />
       </Head>
 

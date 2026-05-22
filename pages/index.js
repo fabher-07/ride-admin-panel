@@ -197,8 +197,8 @@ export default function Dashboard() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Tablero General</title>
-        <meta name="description" content="Panel de administración GO!T" />
+        <title>RIDE Admin - Tablero General</title>
+        <meta name="description" content="Panel de administración RIDE" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>

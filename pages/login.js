@@ -29,18 +29,18 @@ export default function LoginScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Iniciar Sesión</title>
-        <meta name="description" content="Panel de administración GO!T" />
+        <title>RIDE Admin - Iniciar Sesión</title>
+        <meta name="description" content="Panel de administración RIDE" />
       </Head>
 
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
         <div className="max-w-md w-full">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-block bg-primary rounded-full p-4 mb-4">
-              <span className="text-4xl">🚕</span>
+            <div className="inline-block bg-primary rounded-full p-2 mb-4 overflow-hidden">
+              <img src="/icon.png" alt="RIDE Logo" className="w-16 h-16 rounded-full object-cover" />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-2">GO!T Admin</h1>
+            <h1 className="text-4xl font-bold text-white mb-2">RIDE Admin</h1>
             <p className="text-gray-400">Panel de Administración</p>
           </div>
 
@@ -135,7 +135,7 @@ export default function LoginScreen() {
           {/* Footer */}
           <div className="text-center mt-8">
             <p className="text-sm text-gray-500">
-              © 2026 GO!T Taxi App. Todos los derechos reservados.
+              © 2026 RIDE Taxi App. Todos los derechos reservados.
             </p>
           </div>
         </div>

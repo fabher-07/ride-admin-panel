@@ -462,7 +462,7 @@ export default function AdvertisingCampaignsScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Campañas Publicitarias</title>
+        <title>RIDE Admin - Campañas Publicitarias</title>
         <meta name="description" content="Gestión de campañas publicitarias" />
       </Head>
 

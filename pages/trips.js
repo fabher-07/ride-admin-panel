@@ -166,7 +166,7 @@ export default function TripsListScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Viajes Activos</title>
+        <title>RIDE Admin - Viajes Activos</title>
         <meta name="description" content="Lista de viajes activos en tiempo real" />
       </Head>
 

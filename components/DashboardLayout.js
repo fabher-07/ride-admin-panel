@@ -24,14 +24,15 @@ export default function DashboardLayout({ children }) {
       <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full bg-secondary text-white transition-all duration-300 ${
+        className={`fixed top-0 left-0 h-full bg-secondary text-white transition-all duration-300 flex flex-col overflow-hidden ${
           sidebarOpen ? 'w-64' : 'w-20'
         }`}
       >
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-8">
+        {/* Header / Logo */}
+        <div className="p-6 pb-4 shrink-0">
+          <div className="flex items-center justify-between mb-2">
             {sidebarOpen && (
-              <h1 className="text-2xl font-bold text-primary">GO!T Admin</h1>
+              <img src="/favicon.png" alt="RIDE Logo" className="h-10 w-auto rounded-full" />
             )}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -40,9 +41,11 @@ export default function DashboardLayout({ children }) {
               {sidebarOpen ? '←' : '→'}
             </button>
           </div>
+        </div>
 
-          <nav className="space-y-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
-            {/* Dashboard */}
+        {/* Scrollable Navigation */}
+        <nav className="flex-1 overflow-y-auto px-6 pb-4 space-y-1">
+          {/* Dashboard */}
             <a
               href="/"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
@@ -228,6 +231,17 @@ export default function DashboardLayout({ children }) {
               <span className="text-xl">🏦</span>
               {sidebarOpen && <span>Conciliación</span>}
             </a>
+            <a
+              href="/debt-payments"
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                router.pathname === '/debt-payments'
+                  ? 'bg-primary text-black font-medium'
+                  : 'hover:bg-gray-800'
+              }`}
+            >
+              <span className="text-xl">💸</span>
+              {sidebarOpen && <span>Pagos Deuda</span>}
+            </a>
 
             {/* Marketing y Soporte */}
             {sidebarOpen && <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Marketing</div>}
@@ -285,6 +299,17 @@ export default function DashboardLayout({ children }) {
                 </span>
               )}
             </a>
+            <a
+              href="/chatbot"
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                router.pathname === '/chatbot'
+                  ? 'bg-primary text-black font-medium'
+                  : 'hover:bg-gray-800'
+              }`}
+            >
+              <span className="text-xl">🤖</span>
+              {sidebarOpen && <span>Chatbot</span>}
+            </a>
 
             {/* Sistema */}
             {sidebarOpen && <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Sistema</div>}
@@ -335,7 +360,7 @@ export default function DashboardLayout({ children }) {
           </nav>
 
           {/* User Info & Logout */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-700">
+          <div className="shrink-0 p-6 border-t border-gray-700">
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
@@ -367,7 +392,6 @@ export default function DashboardLayout({ children }) {
               </>
             )}
           </div>
-        </div>
       </aside>
 
       {/* Main Content */}

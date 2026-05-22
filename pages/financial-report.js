@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import DashboardLayout from '@/components/DashboardLayout'
+import { supabase } from '@/lib/supabase'
 import {
   LineChart,
   Line,
@@ -18,22 +19,57 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
+const DEFAULT_EXPENSES = {
+  servers: 35000,
+  support: 45000,
+  marketing: 25000,
+  operations: 30000,
+  maintenance: 15000,
+  salaries: 80000,
+}
+
 export default function FinancialReportScreen() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const [selectedMonth, setSelectedMonth] = useState('2026-01')
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [savingExpenses, setSavingExpenses] = useState(false)
+  const [showExpensesModal, setShowExpensesModal] = useState(false)
+
+  // Real financial data from database
+  const [income, setIncome] = useState({
+    cashCommissions: 0,
+    cardCommissions: 0,
+    retentions: 0,
+    total: 0,
+  })
+  const [expenses, setExpenses] = useState({ ...DEFAULT_EXPENSES, total: 0 })
+  const [cashFlowData, setCashFlowData] = useState([])
+  const [verifiedDebtPayments, setVerifiedDebtPayments] = useState(0)
+  const [tripStats, setTripStats] = useState({ cash: 0, card: 0, total: 0 })
+
+  // Expenses form state
+  const [expenseForm, setExpenseForm] = useState({ ...DEFAULT_EXPENSES })
 
   useEffect(() => {
     setMounted(true)
-    // Check if already authenticated in session
     const auth = sessionStorage.getItem('financial_report_auth')
     if (auth === 'true') {
       setIsAuthenticated(true)
     }
   }, [])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFinancialData()
+    }
+  }, [isAuthenticated, selectedMonth])
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault()
@@ -47,90 +83,255 @@ export default function FinancialReportScreen() {
     }
   }
 
-  // Mock financial data
-  const currentMonthData = {
-    income: {
-      cashCommissions: 148000, // Comisiones 15% de viajes en efectivo
-      cardCommissions: 85000, // Comisiones 15% de viajes con tarjeta
-      retentions: 15333, // Retenciones ISR + IVA
-      total: 248333,
-    },
-    expenses: {
-      servers: 35000,
-      support: 45000,
-      marketing: 25000,
-      operations: 30000,
-      maintenance: 15000,
-      salaries: 80000,
-      total: 230000,
-    },
-    profit: 18333,
-    profitMargin: 7.4,
+  const getMonthBounds = (monthStr) => {
+    const [year, month] = monthStr.split('-').map(Number)
+    const start = new Date(year, month - 1, 1)
+    const end = new Date(year, month, 1)
+    return { start: start.toISOString(), end: end.toISOString() }
   }
+
+  const loadFinancialData = async () => {
+    setLoading(true)
+    try {
+      await Promise.all([
+        loadIncomeData(),
+        loadExpensesData(),
+        loadCashFlowData(),
+        loadDebtPayments(),
+        loadTripStats(),
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadIncomeData = async () => {
+    const { start, end } = getMonthBounds(selectedMonth)
+
+    // Fetch commission_transactions grouped by payment_method
+    const { data: commissions, error } = await supabase
+      .from('commission_transactions')
+      .select('payment_method, ride_commission_15_percent, isr_retention_1_25_percent, iva_retention_8_percent')
+      .gte('created_at', start)
+      .lt('created_at', end)
+
+    if (error) {
+      console.error('Error loading commissions:', error)
+      return
+    }
+
+    let cashCommissions = 0
+    let cardCommissions = 0
+    let retentions = 0
+
+    commissions?.forEach((row) => {
+      const commission = parseFloat(row.ride_commission_15_percent || 0)
+      const isr = parseFloat(row.isr_retention_1_25_percent || 0)
+      const iva = parseFloat(row.iva_retention_8_percent || 0)
+
+      if (row.payment_method === 'cash') {
+        cashCommissions += commission
+      } else if (row.payment_method === 'card') {
+        cardCommissions += commission
+      }
+      retentions += isr + iva
+    })
+
+    setIncome({
+      cashCommissions,
+      cardCommissions,
+      retentions,
+      total: cashCommissions + cardCommissions + retentions,
+    })
+  }
+
+  const loadExpensesData = async () => {
+    // Try to load from platform_config first
+    const { data, error } = await supabase
+      .from('platform_config')
+      .select('config_value')
+      .eq('config_key', 'operating_expenses')
+      .single()
+
+    let expenseData = { ...DEFAULT_EXPENSES }
+
+    if (!error && data?.config_value) {
+      const stored = data.config_value
+      expenseData = {
+        servers: stored.servers ?? DEFAULT_EXPENSES.servers,
+        support: stored.support ?? DEFAULT_EXPENSES.support,
+        marketing: stored.marketing ?? DEFAULT_EXPENSES.marketing,
+        operations: stored.operations ?? DEFAULT_EXPENSES.operations,
+        maintenance: stored.maintenance ?? DEFAULT_EXPENSES.maintenance,
+        salaries: stored.salaries ?? DEFAULT_EXPENSES.salaries,
+      }
+    }
+
+    const total = Object.values(expenseData).reduce((a, b) => a + b, 0)
+    setExpenses({ ...expenseData, total })
+    setExpenseForm(expenseData)
+  }
+
+  const saveExpenses = async () => {
+    setSavingExpenses(true)
+    try {
+      const total = Object.values(expenseForm).reduce((a, b) => a + b, 0)
+      const payload = {
+        config_key: 'operating_expenses',
+        config_value: expenseForm,
+        description: 'Gastos operativos mensuales del admin',
+      }
+
+      const { error } = await supabase
+        .from('platform_config')
+        .upsert(payload, { onConflict: 'config_key' })
+
+      if (error) throw error
+
+      setExpenses({ ...expenseForm, total })
+      setShowExpensesModal(false)
+    } catch (e) {
+      console.error('Error saving expenses:', e)
+      alert('Error al guardar gastos: ' + e.message)
+    } finally {
+      setSavingExpenses(false)
+    }
+  }
+
+  const loadCashFlowData = async () => {
+    const months = []
+    const now = new Date()
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const label = d.toLocaleString('es-MX', { month: 'short' }).replace('.', '')
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      months.push({ label, key })
+    }
+
+    const flow = []
+    for (const { label, key } of months) {
+      const { start, end } = getMonthBounds(key)
+
+      const [{ data: commissions }, { data: expConfig }] = await Promise.all([
+        supabase
+          .from('commission_transactions')
+          .select('ride_commission_15_percent, isr_retention_1_25_percent, iva_retention_8_percent')
+          .gte('created_at', start)
+          .lt('created_at', end),
+        supabase
+          .from('platform_config')
+          .select('config_value')
+          .eq('config_key', 'operating_expenses')
+          .single(),
+      ])
+
+      const ingresos = commissions?.reduce((sum, row) => {
+        return sum +
+          parseFloat(row.ride_commission_15_percent || 0) +
+          parseFloat(row.isr_retention_1_25_percent || 0) +
+          parseFloat(row.iva_retention_8_percent || 0)
+      }, 0) || 0
+
+      const storedExpenses = expConfig?.config_value || DEFAULT_EXPENSES
+      const gastos = Object.values(storedExpenses).reduce((a, b) => a + b, 0)
+
+      flow.push({
+        month: label.charAt(0).toUpperCase() + label.slice(1),
+        ingresos,
+        gastos,
+        utilidad: ingresos - gastos,
+      })
+    }
+
+    setCashFlowData(flow)
+  }
+
+  const loadDebtPayments = async () => {
+    const { start, end } = getMonthBounds(selectedMonth)
+    const { data, error } = await supabase
+      .from('driver_debt_payments')
+      .select('amount')
+      .eq('status', 'verified')
+      .gte('verified_at', start)
+      .lt('verified_at', end)
+
+    if (error) {
+      console.error('Error loading debt payments:', error)
+      return
+    }
+
+    const total = data?.reduce((sum, row) => sum + parseFloat(row.amount || 0), 0) || 0
+    setVerifiedDebtPayments(total)
+  }
+
+  const loadTripStats = async () => {
+    const { start, end } = getMonthBounds(selectedMonth)
+    const { data, error } = await supabase
+      .from('trips')
+      .select('payment_method')
+      .eq('status', 'completed')
+      .gte('completed_at', start)
+      .lt('completed_at', end)
+
+    if (error) {
+      console.error('Error loading trip stats:', error)
+      return
+    }
+
+    let cash = 0
+    let card = 0
+    data?.forEach((t) => {
+      if (t.payment_method === 'cash') cash++
+      else if (t.payment_method === 'card') card++
+    })
+
+    setTripStats({ cash, card, total: cash + card })
+  }
+
+  const profit = income.total - expenses.total
+  const profitMargin = income.total > 0 ? ((profit / income.total) * 100).toFixed(1) : 0
 
   const nextMonthProjection = {
     income: {
-      cashCommissions: 160000, // +8.1%
-      cardCommissions: 97000, // +14.1%
-      retentions: 17667, // +15.2%
-      total: 274667,
+      total: Math.round(income.total * 1.1),
     },
     expenses: {
-      servers: 38000,
-      support: 48000,
-      marketing: 30000,
-      operations: 32000,
-      maintenance: 16000,
-      salaries: 85000,
-      total: 249000,
+      total: Math.round(expenses.total * 1.05),
     },
-    profit: 25667,
-    profitMargin: 9.3,
-    growth: 40.0,
+    profit: Math.round((income.total * 1.1) - (expenses.total * 1.05)),
+    profitMargin: income.total > 0 ? ((((income.total * 1.1) - (expenses.total * 1.05)) / (income.total * 1.1)) * 100).toFixed(1) : 0,
+    growth: profit > 0 ? Math.round((((income.total * 1.1) - (expenses.total * 1.05) - profit) / profit) * 100) : 0,
   }
 
-  // Cash flow data (last 6 months)
-  const cashFlowData = [
-    { month: 'Ago', ingresos: 180000, gastos: 200000, utilidad: -20000 },
-    { month: 'Sep', ingresos: 195000, gastos: 205000, utilidad: -10000 },
-    { month: 'Oct', ingresos: 210000, gastos: 215000, utilidad: -5000 },
-    { month: 'Nov', ingresos: 225000, gastos: 220000, utilidad: 5000 },
-    { month: 'Dic', ingresos: 235000, gastos: 225000, utilidad: 10000 },
-    { month: 'Ene', ingresos: 248333, gastos: 230000, utilidad: 18333 },
-  ]
-
-  // Income breakdown
   const incomeBreakdown = [
-    { name: 'Comisiones Efectivo', value: currentMonthData.income.cashCommissions, color: '#10B981' },
-    { name: 'Comisiones Tarjeta', value: currentMonthData.income.cardCommissions, color: '#3B82F6' },
-    { name: 'Retenciones ISR/IVA', value: currentMonthData.income.retentions, color: '#8B5CF6' },
+    { name: 'Comisiones Efectivo', value: income.cashCommissions, color: '#10B981' },
+    { name: 'Comisiones Tarjeta', value: income.cardCommissions, color: '#3B82F6' },
+    { name: 'Retenciones ISR/IVA', value: income.retentions, color: '#8B5CF6' },
   ]
 
-  // Expenses breakdown
   const expensesBreakdown = [
-    { name: 'Salarios', value: currentMonthData.expenses.salaries, color: '#EF4444' },
-    { name: 'Soporte', value: currentMonthData.expenses.support, color: '#F59E0B' },
-    { name: 'Servidores', value: currentMonthData.expenses.servers, color: '#10B981' },
-    { name: 'Marketing', value: currentMonthData.expenses.marketing, color: '#3B82F6' },
-    { name: 'Operaciones', value: currentMonthData.expenses.operations, color: '#8B5CF6' },
-    { name: 'Mantenimiento', value: currentMonthData.expenses.maintenance, color: '#6366F1' },
+    { name: 'Salarios', value: expenses.salaries, color: '#EF4444' },
+    { name: 'Soporte', value: expenses.support, color: '#F59E0B' },
+    { name: 'Servidores', value: expenses.servers, color: '#10B981' },
+    { name: 'Marketing', value: expenses.marketing, color: '#3B82F6' },
+    { name: 'Operaciones', value: expenses.operations, color: '#8B5CF6' },
+    { name: 'Mantenimiento', value: expenses.maintenance, color: '#6366F1' },
   ]
 
-  // Comparison data
   const comparisonData = [
     {
       category: 'Ingresos',
-      actual: currentMonthData.income.total,
+      actual: income.total,
       proyectado: nextMonthProjection.income.total,
     },
     {
       category: 'Gastos',
-      actual: currentMonthData.expenses.total,
+      actual: expenses.total,
       proyectado: nextMonthProjection.expenses.total,
     },
     {
       category: 'Utilidad',
-      actual: currentMonthData.profit,
+      actual: profit,
       proyectado: nextMonthProjection.profit,
     },
   ]
@@ -141,7 +342,13 @@ export default function FinancialReportScreen() {
       currency: 'MXN',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(value)
+    }).format(value || 0)
+  }
+
+  const monthLabel = (monthStr) => {
+    const [y, m] = monthStr.split('-').map(Number)
+    const d = new Date(y, m - 1)
+    return d.toLocaleString('es-MX', { month: 'long', year: 'numeric' })
   }
 
   // Show password modal if not authenticated
@@ -149,7 +356,7 @@ export default function FinancialReportScreen() {
     return (
       <>
         <Head>
-          <title>GO!T Admin - Reporte Financiero</title>
+          <title>RIDE Admin - Reporte Financiero</title>
           <meta name="description" content="Reporte de ingresos, gastos y proyecciones" />
         </Head>
 
@@ -209,58 +416,95 @@ export default function FinancialReportScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Reporte Financiero</title>
+        <title>RIDE Admin - Reporte Financiero</title>
         <meta name="description" content="Reporte de ingresos, gastos y proyecciones" />
       </Head>
 
       <DashboardLayout>
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Reporte Financiero</h1>
-          <p className="text-gray-600 mt-1">Ingresos, Gastos y Proyecciones</p>
+        {/* Header with month selector */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Reporte Financiero</h1>
+            <p className="text-gray-600 mt-1">Ingresos, Gastos y Proyecciones</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+            />
+            {loading && (
+              <div className="w-6 h-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+            )}
+          </div>
+        </div>
+
+        {/* Quick Stats Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg p-4 border-l-4 border-green-500 shadow-sm">
+            <p className="text-xs text-gray-500 mb-1">Viajes Efectivo</p>
+            <p className="text-2xl font-bold text-green-600">{tripStats.cash}</p>
+            <p className="text-xs text-gray-400">completados</p>
+          </div>
+          <div className="bg-white rounded-lg p-4 border-l-4 border-blue-500 shadow-sm">
+            <p className="text-xs text-gray-500 mb-1">Viajes Tarjeta</p>
+            <p className="text-2xl font-bold text-blue-600">{tripStats.card}</p>
+            <p className="text-xs text-gray-400">completados</p>
+          </div>
+          <div className="bg-white rounded-lg p-4 border-l-4 border-yellow-500 shadow-sm">
+            <p className="text-xs text-gray-500 mb-1">Pagos Verificados</p>
+            <p className="text-2xl font-bold text-yellow-600">{formatCurrency(verifiedDebtPayments)}</p>
+            <p className="text-xs text-gray-400">deudas cobradas</p>
+          </div>
+          <div className="bg-white rounded-lg p-4 border-l-4 border-purple-500 shadow-sm">
+            <p className="text-xs text-gray-500 mb-1">Viajes Totales</p>
+            <p className="text-2xl font-bold text-purple-600">{tripStats.total}</p>
+            <p className="text-xs text-gray-400">en el periodo</p>
+          </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg p-6 border-l-4 border-green-500 shadow-sm">
             <p className="text-sm text-gray-600 mb-1">Ingresos Totales</p>
             <p className="text-3xl font-bold text-green-600">
-              {formatCurrency(currentMonthData.income.total)}
+              {formatCurrency(income.total)}
             </p>
-            <p className="text-xs text-gray-500 mt-2">Enero 2026</p>
+            <p className="text-xs text-gray-500 mt-2">{monthLabel(selectedMonth)}</p>
           </div>
 
           <div className="bg-white rounded-lg p-6 border-l-4 border-red-500 shadow-sm">
             <p className="text-sm text-gray-600 mb-1">Gastos Totales</p>
             <p className="text-3xl font-bold text-red-600">
-              {formatCurrency(currentMonthData.expenses.total)}
+              {formatCurrency(expenses.total)}
             </p>
-            <p className="text-xs text-gray-500 mt-2">Enero 2026</p>
+            <p className="text-xs text-gray-500 mt-2">{monthLabel(selectedMonth)}</p>
           </div>
 
           <div className="bg-white rounded-lg p-6 border-l-4 border-blue-500 shadow-sm">
             <p className="text-sm text-gray-600 mb-1">Utilidad Neta</p>
             <p className="text-3xl font-bold text-blue-600">
-              {formatCurrency(currentMonthData.profit)}
+              {formatCurrency(profit)}
             </p>
             <p className="text-xs text-gray-500 mt-2">
-              Margen: {currentMonthData.profitMargin}%
+              Margen: {profitMargin}%
             </p>
           </div>
 
           <div className="bg-white rounded-lg p-6 border-l-4 border-purple-500 shadow-sm">
-            <p className="text-sm text-gray-600 mb-1">Proyección Feb</p>
+            <p className="text-sm text-gray-600 mb-1">Proyección Próx. Mes</p>
             <p className="text-3xl font-bold text-purple-600">
               {formatCurrency(nextMonthProjection.profit)}
             </p>
             <p className="text-xs text-green-600 mt-2">
-              ↑ +{nextMonthProjection.growth}% vs Enero
+              ↑ +{nextMonthProjection.growth}% vs actual
             </p>
           </div>
         </div>
 
         {/* Income vs Expenses Comparison */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Income Details */}
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -274,7 +518,7 @@ export default function FinancialReportScreen() {
                   <p className="text-xs text-gray-600">15% comisión sobre tarifa sin IVA</p>
                 </div>
                 <p className="text-lg font-bold text-green-600">
-                  {formatCurrency(currentMonthData.income.cashCommissions)}
+                  {formatCurrency(income.cashCommissions)}
                 </p>
               </div>
 
@@ -284,7 +528,7 @@ export default function FinancialReportScreen() {
                   <p className="text-xs text-gray-600">15% comisión sobre tarifa sin IVA</p>
                 </div>
                 <p className="text-lg font-bold text-blue-600">
-                  {formatCurrency(currentMonthData.income.cardCommissions)}
+                  {formatCurrency(income.cardCommissions)}
                 </p>
               </div>
 
@@ -294,14 +538,14 @@ export default function FinancialReportScreen() {
                   <p className="text-xs text-gray-600">Retenciones fiscales sobre tarifa total</p>
                 </div>
                 <p className="text-lg font-bold text-purple-600">
-                  {formatCurrency(currentMonthData.income.retentions)}
+                  {formatCurrency(income.retentions)}
                 </p>
               </div>
 
               <div className="flex justify-between items-center p-4 bg-green-100 rounded-lg border-2 border-green-500">
                 <p className="text-lg font-bold text-gray-900">TOTAL INGRESOS</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(currentMonthData.income.total)}
+                  {formatCurrency(income.total)}
                 </p>
               </div>
             </div>
@@ -309,7 +553,15 @@ export default function FinancialReportScreen() {
 
           {/* Expenses Details */}
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">💸 Gastos Operativos</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">💸 Gastos Operativos</h2>
+              <button
+                onClick={() => setShowExpensesModal(true)}
+                className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                ✏️ Editar
+              </button>
+            </div>
 
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
@@ -318,7 +570,7 @@ export default function FinancialReportScreen() {
                   <p className="text-xs text-gray-600">Equipo completo</p>
                 </div>
                 <p className="text-lg font-bold text-red-600">
-                  {formatCurrency(currentMonthData.expenses.salaries)}
+                  {formatCurrency(expenses.salaries)}
                 </p>
               </div>
 
@@ -328,7 +580,7 @@ export default function FinancialReportScreen() {
                   <p className="text-xs text-gray-600">24/7 atención</p>
                 </div>
                 <p className="text-lg font-bold text-orange-600">
-                  {formatCurrency(currentMonthData.expenses.support)}
+                  {formatCurrency(expenses.support)}
                 </p>
               </div>
 
@@ -338,7 +590,7 @@ export default function FinancialReportScreen() {
                   <p className="text-xs text-gray-600">AWS, hosting, base de datos</p>
                 </div>
                 <p className="text-lg font-bold text-green-600">
-                  {formatCurrency(currentMonthData.expenses.servers)}
+                  {formatCurrency(expenses.servers)}
                 </p>
               </div>
 
@@ -348,7 +600,7 @@ export default function FinancialReportScreen() {
                   <p className="text-xs text-gray-600">Publicidad y promociones</p>
                 </div>
                 <p className="text-lg font-bold text-blue-600">
-                  {formatCurrency(currentMonthData.expenses.marketing)}
+                  {formatCurrency(expenses.marketing)}
                 </p>
               </div>
 
@@ -358,7 +610,7 @@ export default function FinancialReportScreen() {
                   <p className="text-xs text-gray-600">Logística y administración</p>
                 </div>
                 <p className="text-lg font-bold text-purple-600">
-                  {formatCurrency(currentMonthData.expenses.operations)}
+                  {formatCurrency(expenses.operations)}
                 </p>
               </div>
 
@@ -368,14 +620,14 @@ export default function FinancialReportScreen() {
                   <p className="text-xs text-gray-600">Actualizaciones y mejoras</p>
                 </div>
                 <p className="text-lg font-bold text-indigo-600">
-                  {formatCurrency(currentMonthData.expenses.maintenance)}
+                  {formatCurrency(expenses.maintenance)}
                 </p>
               </div>
 
               <div className="flex justify-between items-center p-4 bg-red-100 rounded-lg border-2 border-red-500">
                 <p className="text-lg font-bold text-gray-900">TOTAL GASTOS</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {formatCurrency(currentMonthData.expenses.total)}
+                  {formatCurrency(expenses.total)}
                 </p>
               </div>
             </div>
@@ -385,7 +637,7 @@ export default function FinancialReportScreen() {
         {/* Projections */}
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 mb-6 shadow-sm border-2 border-purple-300">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            🔮 Proyecciones para Febrero 2026
+            🔮 Proyecciones Próximo Mes
           </h2>
 
           <div className="grid grid-cols-3 gap-6">
@@ -395,7 +647,7 @@ export default function FinancialReportScreen() {
                 {formatCurrency(nextMonthProjection.income.total)}
               </p>
               <p className="text-xs text-green-600 mt-2">
-                ↑ +{formatCurrency(nextMonthProjection.income.total - currentMonthData.income.total)}
+                ↑ +{formatCurrency(nextMonthProjection.income.total - income.total)}
               </p>
             </div>
 
@@ -405,7 +657,7 @@ export default function FinancialReportScreen() {
                 {formatCurrency(nextMonthProjection.expenses.total)}
               </p>
               <p className="text-xs text-orange-600 mt-2">
-                ↑ +{formatCurrency(nextMonthProjection.expenses.total - currentMonthData.expenses.total)}
+                ↑ +{formatCurrency(nextMonthProjection.expenses.total - expenses.total)}
               </p>
             </div>
 
@@ -424,8 +676,8 @@ export default function FinancialReportScreen() {
             <p className="text-sm text-gray-700">
               <strong>Análisis:</strong> Se espera un crecimiento del{' '}
               <strong className="text-green-600">{nextMonthProjection.growth}%</strong> en la
-              utilidad neta gracias al incremento en viajes con tarjeta y efectivo. El margen
-              de utilidad mejorará de <strong>{currentMonthData.profitMargin}%</strong> a{' '}
+              utilidad neta. El margen de utilidad mejorará de{' '}
+              <strong>{profitMargin}%</strong> a{' '}
               <strong className="text-blue-600">{nextMonthProjection.profitMargin}%</strong>.
             </p>
           </div>
@@ -485,8 +737,8 @@ export default function FinancialReportScreen() {
                   <YAxis />
                   <Tooltip formatter={(value) => formatCurrency(value)} />
                   <Legend />
-                  <Bar dataKey="actual" fill="#3B82F6" name="Enero (Actual)" />
-                  <Bar dataKey="proyectado" fill="#8B5CF6" name="Febrero (Proyectado)" />
+                  <Bar dataKey="actual" fill="#3B82F6" name="Actual" />
+                  <Bar dataKey="proyectado" fill="#8B5CF6" name="Proyectado" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -551,6 +803,70 @@ export default function FinancialReportScreen() {
             )}
           </div>
         </div>
+
+        {/* Edit Expenses Modal */}
+        {showExpensesModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Editar Gastos Operativos</h3>
+                <button
+                  onClick={() => setShowExpensesModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {Object.entries(expenseForm).map(([key, value]) => {
+                  const labels = {
+                    servers: 'Servidores',
+                    support: 'Soporte al Cliente',
+                    marketing: 'Marketing',
+                    operations: 'Operaciones',
+                    maintenance: 'Mantenimiento',
+                    salaries: 'Salarios',
+                  }
+                  return (
+                    <div key={key}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {labels[key] || key}
+                      </label>
+                      <input
+                        type="number"
+                        value={value}
+                        onChange={(e) =>
+                          setExpenseForm({
+                            ...expenseForm,
+                            [key]: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => setShowExpensesModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={saveExpenses}
+                  disabled={savingExpenses}
+                  className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition-colors disabled:opacity-50"
+                >
+                  {savingExpenses ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </DashboardLayout>
     </>
   )

@@ -217,7 +217,7 @@ export default function BackupSecurityScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Copias de Seguridad</title>
+        <title>RIDE Admin - Copias de Seguridad</title>
         <meta name="description" content="Sistema de backup y auditoría" />
       </Head>
 

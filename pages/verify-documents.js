@@ -308,7 +308,7 @@ export default function VerifyDocumentsScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Verificar Documentos</title>
+        <title>RIDE Admin - Verificar Documentos</title>
         <meta name="description" content="Verificación de documentos de conductor" />
       </Head>
 

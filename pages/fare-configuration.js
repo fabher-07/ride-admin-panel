@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import DashboardLayout from '@/components/DashboardLayout'
+import { supabase } from '@/lib/supabase'
+import { updateMultipleConfigs } from '@/services/platformConfigService'
 import {
   LineChart,
   Line,
@@ -22,7 +24,7 @@ export default function FareConfigurationScreen() {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [pendingChanges, setPendingChanges] = useState(null)
 
-  // Fare configuration
+  // Fare configuration (loaded from Supabase)
   const [fares, setFares] = useState({
     baseFare: 45,
     includedKm: 2,
@@ -30,6 +32,7 @@ export default function FareConfigurationScreen() {
     perMinuteWait: 5,
     minimumFare: 50,
   })
+  const [saving, setSaving] = useState(false)
 
   // Zone multipliers
   const [zones, setZones] = useState([
@@ -64,7 +67,7 @@ export default function FareConfigurationScreen() {
     projectedIncrease: 18,
   }
 
-  // Results tracking (15-day plan)
+  // Results tracking
   const [resultsData] = useState([
     { day: 'Día 1', viajes: 980, satisfaccion: 4.2, ingresos: 63700 },
     { day: 'Día 3', viajes: 1050, satisfaccion: 4.3, ingresos: 68250 },
@@ -76,7 +79,38 @@ export default function FareConfigurationScreen() {
 
   useEffect(() => {
     setMounted(true)
+    loadFaresFromSupabase()
   }, [])
+
+  const loadFaresFromSupabase = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('platform_config')
+        .select('config_key, config_value')
+        .in('config_key', [
+          'base_fare',
+          'included_km',
+          'per_km_extra',
+          'per_minute_wait',
+          'minimum_fare',
+        ])
+
+      if (error) throw error
+
+      const loaded = { ...fares }
+      data.forEach((item) => {
+        const val = item.config_value?.value ?? item.config_value
+        if (item.config_key === 'base_fare') loaded.baseFare = Number(val)
+        if (item.config_key === 'included_km') loaded.includedKm = Number(val)
+        if (item.config_key === 'per_km_extra') loaded.perKmExtra = Number(val)
+        if (item.config_key === 'per_minute_wait') loaded.perMinuteWait = Number(val)
+        if (item.config_key === 'minimum_fare') loaded.minimumFare = Number(val)
+      })
+      setFares(loaded)
+    } catch (e) {
+      console.error('Error cargando tarifas:', e)
+    }
+  }
 
   const calculateFare = (distance, waitTime, zone, dynamic) => {
     let fare = fares.baseFare
@@ -115,10 +149,33 @@ export default function FareConfigurationScreen() {
     setShowConfirmModal(true)
   }
 
-  const handleConfirmChanges = () => {
-    alert('Tarifas actualizadas exitosamente. Los cambios se aplicarán gradualmente en 15 días.')
-    setShowConfirmModal(false)
-    setPendingChanges(null)
+  const handleConfirmChanges = async () => {
+    setSaving(true)
+    try {
+      const configUpdates = {
+        base_fare: { value: fares.baseFare, currency: 'MXN' },
+        included_km: { value: fares.includedKm, unit: 'km' },
+        per_km_extra: { value: fares.perKmExtra, currency: 'MXN' },
+        per_minute_wait: { value: fares.perMinuteWait, currency: 'MXN' },
+        minimum_fare: { value: fares.minimumFare, currency: 'MXN' },
+      }
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const result = await updateMultipleConfigs(configUpdates, user?.id)
+
+      if (result.success) {
+        alert('Tarifas actualizadas exitosamente. Los cambios se aplican de inmediato a todos los viajes.')
+      } else {
+        alert('Error al guardar tarifas: ' + result.error)
+      }
+    } catch (e) {
+      alert('Error inesperado al guardar tarifas.')
+      console.error(e)
+    } finally {
+      setSaving(false)
+      setShowConfirmModal(false)
+      setPendingChanges(null)
+    }
   }
 
   const currentFare = calculateFare(
@@ -131,7 +188,7 @@ export default function FareConfigurationScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Configuración de Tarifas</title>
+        <title>RIDE Admin - Configuración de Tarifas</title>
         <meta name="description" content="Configuración inteligente de tarifas" />
       </Head>
 
@@ -658,7 +715,7 @@ export default function FareConfigurationScreen() {
                       (80%)
                     </p>
                     <p className="text-xs text-gray-700">
-                      <strong>Comisión GO!T:</strong> ${Math.round(currentFare * 0.2)} (20%)
+                      <strong>Comisión RIDE:</strong> ${Math.round(currentFare * 0.2)} (20%)
                     </p>
                   </div>
                 </div>
@@ -814,28 +871,28 @@ export default function FareConfigurationScreen() {
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-6 shadow-sm border-2 border-pink-300">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
-                📅 Plan Gradual de 15 Días
+                📅 Impacto en Tiempo Real
               </h2>
               <p className="text-sm text-gray-700 mb-4">
-                Los cambios de tarifa se implementan gradualmente para monitorear el impacto en
-                tiempo real y hacer ajustes basados en datos reales.
+                Los cambios de tarifa se aplican de inmediato. El panel muestra el impacto en
+                tiempo real basado en datos reales del sistema.
               </p>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white rounded-lg p-4">
-                  <p className="text-xs text-gray-600 mb-1">Días 1-5</p>
-                  <p className="text-sm font-semibold text-gray-900">Fase de Prueba</p>
-                  <p className="text-xs text-gray-600 mt-2">20% de conductores</p>
+                  <p className="text-xs text-gray-600 mb-1">Primeras 24h</p>
+                  <p className="text-sm font-semibold text-gray-900">Observación</p>
+                  <p className="text-xs text-gray-600 mt-2">Monitoreo de volumen</p>
                 </div>
                 <div className="bg-white rounded-lg p-4">
-                  <p className="text-xs text-gray-600 mb-1">Días 6-10</p>
-                  <p className="text-sm font-semibold text-gray-900">Expansión</p>
-                  <p className="text-xs text-gray-600 mt-2">60% de conductores</p>
+                  <p className="text-xs text-gray-600 mb-1">Días 2-7</p>
+                  <p className="text-sm font-semibold text-gray-900">Análisis</p>
+                  <p className="text-xs text-gray-600 mt-2">Tendencias de demanda</p>
                 </div>
                 <div className="bg-white rounded-lg p-4">
-                  <p className="text-xs text-gray-600 mb-1">Días 11-15</p>
-                  <p className="text-sm font-semibold text-gray-900">Implementación Total</p>
-                  <p className="text-xs text-gray-600 mt-2">100% de conductores</p>
+                  <p className="text-xs text-gray-600 mb-1">Semana 2+</p>
+                  <p className="text-sm font-semibold text-gray-900">Optimización</p>
+                  <p className="text-xs text-gray-600 mt-2">Ajustes basados en datos</p>
                 </div>
               </div>
             </div>
@@ -950,7 +1007,7 @@ export default function FareConfigurationScreen() {
                 <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
                   <p className="text-sm text-gray-700">
                     Estás a punto de actualizar las tarifas del sistema. Los cambios se
-                    implementarán gradualmente en un período de <strong>15 días</strong>.
+                    aplicarán de <strong>inmediato</strong> a todos los nuevos viajes.
                   </p>
                 </div>
 
@@ -980,12 +1037,12 @@ export default function FareConfigurationScreen() {
 
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                    📅 Plan de Implementación:
+                    ⚡ Aplicación Inmediata
                   </h3>
                   <ul className="text-xs text-gray-700 space-y-1">
-                    <li>• Días 1-5: Prueba con 20% de conductores</li>
-                    <li>• Días 6-10: Expansión al 60% de conductores</li>
-                    <li>• Días 11-15: Implementación total (100%)</li>
+                    <li>• Los cambios se aplican al instante en todo el sistema</li>
+                    <li>• Todos los nuevos viajes usarán las tarifas actualizadas</li>
+                    <li>• Los viajes en curso no se ven afectados</li>
                     <li>• Monitoreo automático de resultados en tiempo real</li>
                   </ul>
                 </div>
@@ -1000,9 +1057,10 @@ export default function FareConfigurationScreen() {
                 </button>
                 <button
                   onClick={handleConfirmChanges}
-                  className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+                  disabled={saving}
+                  className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  ✅ Confirmar y Aplicar
+                  {saving ? '💾 Guardando...' : '✅ Confirmar y Aplicar'}
                 </button>
               </div>
             </div>

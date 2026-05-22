@@ -164,7 +164,7 @@ export default function PromotionsPage() {
 
   return (
     <DashboardLayout>
-      <Head><title>Promociones | GO!T Admin</title></Head>
+      <Head><title>Promociones | RIDE Admin</title></Head>
 
       <div className="space-y-6">
         {/* Header */}
@@ -359,7 +359,7 @@ export default function PromotionsPage() {
                 <textarea
                   value={form.description}
                   onChange={e => setForm({ ...form, description: e.target.value })}
-                  placeholder="ej. Descuento del 50% en tu primer viaje con GO!T"
+                  placeholder="ej. Descuento del 50% en tu primer viaje con RIDE"
                   rows={2}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
                 />

@@ -51,7 +51,7 @@ export default function BlockedDriversScreen() {
           chats: [],
         },
         reactivationSteps: [
-          'Contactar con soporte de GO!T',
+          'Contactar con soporte de RIDE',
           'Revisar motivo del bloqueo',
           'Completar requisitos solicitados',
           'Esperar aprobación del administrador',
@@ -237,7 +237,7 @@ export default function BlockedDriversScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Conductores Bloqueados</title>
+        <title>RIDE Admin - Conductores Bloqueados</title>
         <meta name="description" content="Gestión de conductores bloqueados" />
       </Head>
 

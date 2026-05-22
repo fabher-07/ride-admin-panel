@@ -503,7 +503,7 @@ export default function SupportTicketsScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Soporte por Tickets</title>
+        <title>RIDE Admin - Soporte por Tickets</title>
         <meta name="description" content="Sistema de tickets de soporte" />
       </Head>
 
@@ -867,7 +867,7 @@ export default function SupportTicketsScreen() {
                           : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'
                       }`}>
                         <p className={`text-xs font-semibold mb-1 ${isAdmin ? 'text-green-100' : 'text-blue-500'}`}>
-                          {isAdmin ? '🎧 Soporte GO!T' : '🚖 Conductor'}
+                          {isAdmin ? '🎧 Soporte RIDE' : '🚖 Conductor'}
                         </p>
                         <p className="text-sm leading-relaxed">{msg.message}</p>
                         <p className={`text-xs mt-1 text-right ${isAdmin ? 'text-green-100' : 'text-gray-400'}`}>

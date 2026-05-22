@@ -24,12 +24,10 @@ export const AuthProvider = ({ children }) => {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (session?.user) {
-          // Get user details from users table
+          // Get user details from users table via RPC (bypasses RLS)
           const { data: userData } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
+            .rpc('get_admin_user', { p_user_id: session.user.id })
+            .maybeSingle()
 
           if (userData && userData.user_type === 'admin') {
             setUser(userData)
@@ -74,11 +72,9 @@ export const AuthProvider = ({ children }) => {
       // Wait a bit for auth to settle
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      // Check if user exists in users table
+      // Check if user exists in users table via RPC (bypasses RLS)
       const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authData.user.id)
+        .rpc('get_admin_user', { p_user_id: authData.user.id })
         .maybeSingle()
 
       if (!userData) {
@@ -159,7 +155,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: 'GO!T Admin TOTP',
+        friendlyName: 'RIDE Admin TOTP',
       })
       if (error) throw error
       return {

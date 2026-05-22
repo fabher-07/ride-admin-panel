@@ -254,7 +254,7 @@ export default function DriversScreen() {
   return (
     <>
       <Head>
-        <title>GO!T Admin - Gestión de Conductores</title>
+        <title>RIDE Admin - Gestión de Conductores</title>
         <meta name="description" content="Gestión y administración de conductores" />
       </Head>
 
