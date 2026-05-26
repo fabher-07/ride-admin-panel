@@ -476,11 +476,14 @@ export default function VerifyDocumentsScreen() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex items-center justify-center h-32 bg-gray-100">
-                                <div className="text-center">
-                                  <div className="text-2xl mb-1">📱</div>
-                                  <p className="text-xs text-gray-500">Foto en dispositivo móvil</p>
-                                  <p className="text-xs text-gray-400 mt-1 break-all px-2">{img.url.substring(0, 60)}...</p>
+                              <div className="flex items-center justify-center h-32 bg-orange-50 border border-orange-200 rounded-b-lg">
+                                <div className="text-center px-4">
+                                  <div className="text-2xl mb-1">⚠️</div>
+                                  <p className="text-xs font-semibold text-orange-700">Foto no subida al servidor</p>
+                                  <p className="text-xs text-orange-600 mt-1">
+                                    Guardada localmente en el dispositivo. Pide al conductor que reenvíe sus documentos.
+                                  </p>
+                                  <p className="text-xs text-orange-400 mt-1 break-all">{img.url.substring(0, 50)}...</p>
                                 </div>
                               </div>
                             )}
