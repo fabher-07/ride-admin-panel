@@ -231,9 +231,20 @@ export default function DriversScreen() {
 
       if (error) throw error
 
-      // Push notifications not available in web admin panel
-      if (driver.user_id) {
-        console.log('Driver approved notification would be sent to:', driver.user_id)
+      // Enviar notificación push de aprobación al conductor
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            user_id: driver.id,
+            title: '✅ ¡Cuenta aprobada!',
+            body: 'Tu cuenta de conductor ha sido aprobada. Ya puedes empezar a recibir viajes.',
+            data: { type: 'driver_approved', screen: 'DriverDashboard' },
+            channel_id: 'driver-status',
+            priority: 'high',
+          }
+        })
+      } catch (notifErr) {
+        console.warn('Error enviando notificación de aprobación:', notifErr)
       }
 
       // Log audit

@@ -208,9 +208,20 @@ export default function VerifyDocumentsScreen() {
 
       if (error) throw error
 
-      // Push notifications not available in web admin panel
-      if (driver?.user_id) {
-        console.log('Driver approved notification would be sent to:', driver.user_id)
+      // Enviar notificación push de aprobación al conductor
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            user_id: driverId,
+            title: '✅ ¡Cuenta aprobada!',
+            body: 'Tu cuenta de conductor ha sido aprobada. Ya puedes empezar a recibir viajes.',
+            data: { type: 'driver_approved', screen: 'DriverDashboard' },
+            channel_id: 'driver-status',
+            priority: 'high',
+          }
+        })
+      } catch (notifErr) {
+        console.warn('Error enviando notificación de aprobación:', notifErr)
       }
 
       // Log audit
@@ -251,6 +262,22 @@ export default function VerifyDocumentsScreen() {
 
       if (error) throw error
 
+      // Enviar notificación push de rechazo al conductor
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            user_id: driverId,
+            title: '❌ Cuenta rechazada',
+            body: `Tu solicitud fue rechazada. Razón: ${reason}`,
+            data: { type: 'driver_rejected', screen: 'DriverDocumentRejection', reason },
+            channel_id: 'driver-status',
+            priority: 'high',
+          }
+        })
+      } catch (notifErr) {
+        console.warn('Error enviando notificación de rechazo:', notifErr)
+      }
+
       // Log audit
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
@@ -261,7 +288,7 @@ export default function VerifyDocumentsScreen() {
         ip_address: 'N/A',
       }).then()
 
-      alert('Conductor rechazado. Se notificará al conductor.')
+      alert('Conductor rechazado. Se le notificó la razón y podrá corregir sus documentos.')
       router.push('/pending-approvals')
     } catch (error) {
       console.error('Error rejecting driver:', error)

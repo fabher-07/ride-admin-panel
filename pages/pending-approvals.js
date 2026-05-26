@@ -34,6 +34,7 @@ export default function PendingApprovalsScreen() {
 
       const transformedDrivers = driversData.map(driver => ({
         id: driver.id,
+        user_id: driver.user_id || driver.id, // drivers.id == users.id FK
         name: driver.user?.full_name || 'Sin nombre',
         email: driver.user?.email || '',
         phone: driver.user?.phone || '',
@@ -208,9 +209,20 @@ export default function PendingApprovalsScreen() {
 
       if (error) throw error
 
-      // Push notifications not available in web admin panel
-      if (driver.user_id) {
-        console.log('Driver approved notification would be sent to:', driver.user_id)
+      // Enviar notificación push de aprobación al conductor
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            user_id: driver.id,
+            title: '✅ ¡Cuenta aprobada!',
+            body: 'Tu cuenta de conductor ha sido aprobada. Ya puedes empezar a recibir viajes.',
+            data: { type: 'driver_approved', screen: 'DriverDashboard' },
+            channel_id: 'driver-status',
+            priority: 'high',
+          }
+        })
+      } catch (notifErr) {
+        console.warn('Error enviando notificación de aprobación:', notifErr)
       }
 
       // Log audit
@@ -246,6 +258,22 @@ export default function PendingApprovalsScreen() {
 
       if (error) throw error
 
+      // Enviar notificación push de rechazo al conductor
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            user_id: driver.id,
+            title: '❌ Cuenta rechazada',
+            body: `Tu solicitud fue rechazada. Razón: ${reason}`,
+            data: { type: 'driver_rejected', screen: 'DriverDocumentRejection', reason },
+            channel_id: 'driver-status',
+            priority: 'high',
+          }
+        })
+      } catch (notifErr) {
+        console.warn('Error enviando notificación de rechazo:', notifErr)
+      }
+
       // Log audit
       await supabase.from('audit_logs').insert({
         user_id: user.id,
@@ -256,7 +284,7 @@ export default function PendingApprovalsScreen() {
         ip_address: 'N/A',
       })
 
-      alert(`${driver.name} ha sido rechazado. Se le notificará la razón.`)
+      alert(`${driver.name} ha sido rechazado. Se le notificó la razón y podrá corregir sus documentos.`)
       fetchPendingDrivers()
     } catch (error) {
       console.error('Error rejecting driver:', error)
