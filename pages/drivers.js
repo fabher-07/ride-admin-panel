@@ -40,23 +40,37 @@ export default function DriversScreen() {
       if (error) throw error
 
       // Transform data to match UI format
-      const transformedDrivers = driversData.map(driver => ({
-        id: driver.id,
-        name: driver.user?.full_name || 'Sin nombre',
-        email: driver.user?.email || '',
-        phone: driver.user?.phone || '',
-        economico: driver.economico,
-        status: driver.status,
-        rating: driver.rating || 5.0,
-        totalTrips: driver.total_trips || 0,
-        tripsThisMonth: 0, // TODO: Calculate from trips table
-        joinedDate: new Date(driver.created_at).toISOString().split('T')[0],
-        lastTrip: null, // TODO: Get from trips table
-        photo: '🚕',
-        vehicleModel: `${driver.vehicle_brand} ${driver.vehicle_model} ${driver.vehicle_year}`,
-        vehiclePlate: driver.vehicle_plates,
-        rejection_reason: driver.rejection_reason,
-      }))
+      const transformedDrivers = driversData.map(driver => {
+        // Fallback: if users table has no full_name, try to extract from documents JSONB
+        let name = driver.user?.full_name || '';
+        let email = driver.user?.email || '';
+        let phone = driver.user?.phone || '';
+        if (!name && driver.documents?.step1) {
+          const s1 = driver.documents.step1;
+          name = `${s1.nombres || ''} ${s1.apellidoPaterno || ''} ${s1.apellidoMaterno || ''}`.trim();
+        }
+        if (!name) name = 'Sin nombre';
+        if (!email && driver.documents?.step1?.email) email = driver.documents.step1.email;
+        if (!phone && driver.documents?.step1?.phoneNumber) phone = driver.documents.step1.phoneNumber;
+
+        return {
+          id: driver.id,
+          name,
+          email,
+          phone,
+          economico: driver.economico,
+          status: driver.status,
+          rating: driver.rating || 5.0,
+          totalTrips: driver.total_trips || 0,
+          tripsThisMonth: 0, // TODO: Calculate from trips table
+          joinedDate: new Date(driver.created_at).toISOString().split('T')[0],
+          lastTrip: null, // TODO: Get from trips table
+          photo: '🚕',
+          vehicleModel: `${driver.vehicle_brand} ${driver.vehicle_model} ${driver.vehicle_year}`,
+          vehiclePlate: driver.vehicle_plates,
+          rejection_reason: driver.rejection_reason,
+        }
+      })
 
       setDrivers(transformedDrivers)
 

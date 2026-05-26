@@ -77,20 +77,27 @@ export default function VerifyDocumentsScreen() {
 
   const buildDocumentList = (driverData) => {
     const docsJson = driverData.documents || {}
+    const hasDocuments = Object.keys(docsJson).length > 0
     const step1 = docsJson.step1 || {}
     const step2 = docsJson.step2 || {}
     const step3 = docsJson.step3 || {}
 
-    // Step1 photos: INE front/back, selfie
-    // Step2 photos: vehicle photos
-    // Step3: licenciaConducir, tarjetaCirculacion, permisoTaxi
+    // Fallback: if no documents JSONB, try to extract name/email/phone from users relation
+    const user = driverData.user || {}
+    const driverName = user.full_name || (step1.nombres
+      ? `${step1.nombres || ''} ${step1.apellidoPaterno || ''} ${step1.apellidoMaterno || ''}`.trim()
+      : 'Conductor')
+    const driverEmail = user.email || step1.email || '-'
+    const driverPhone = user.phone || step1.phoneNumber || '-'
+
     const docList = []
 
     // Personal info from step1 — photos at TOP LEVEL (ineFront, ineBack, facePhoto) or nested in .photos
     const step1TopPhotos = collectPhotos(step1, ['ineFront', 'ineBack', 'facePhoto'])
     const step1NestedPhotos = collectPhotos(step1.photos, ['ineFront', 'ineBack', 'selfie', 'facePhoto'])
     const step1Photos = [...step1TopPhotos, ...step1NestedPhotos]
-    if (step1.nombres || step1.apellidoPaterno || step1Photos.length > 0) {
+    // Also show personal info if users table has data but no photos were uploaded
+    if (step1.nombres || step1.apellidoPaterno || step1Photos.length > 0 || !hasDocuments) {
       docList.push({
         id: 'personal_info',
         type: 'personal',
@@ -98,8 +105,10 @@ export default function VerifyDocumentsScreen() {
         status: 'pending',
         uploadDate: driverData.created_at ? new Date(driverData.created_at).toLocaleDateString('es-MX') : '-',
         data: {
-          'Nombre': `${step1.nombres || ''} ${step1.apellidoPaterno || ''} ${step1.apellidoMaterno || ''}`.trim() || '-',
-          'CURP': step1.curp || 'No proporcionado',
+          'Nombre': driverName,
+          'Email': driverEmail,
+          'Teléfono': driverPhone,
+          'CURP': step1.curp || driverData.license_number || 'No proporcionado',
         },
         imageUrls: step1Photos,
       })
@@ -110,7 +119,7 @@ export default function VerifyDocumentsScreen() {
     const step2TopPhotos = collectPhotos(step2, vehiclePhotoKeys)
     const step2NestedPhotos = collectPhotos(step2.photos, step2.photos ? Object.keys(step2.photos) : [])
     const allVehiclePhotos = [...step2TopPhotos, ...step2NestedPhotos]
-    if (step2.marca || step2.modelo || step2.placas || allVehiclePhotos.length > 0) {
+    if (step2.marca || step2.modelo || step2.placas || allVehiclePhotos.length > 0 || !hasDocuments) {
       docList.push({
         id: 'vehicle_info',
         type: 'vehicle',
@@ -176,28 +185,6 @@ export default function VerifyDocumentsScreen() {
           'No. Económico': driverData.economico || '-',
         },
         imageUrls: [{ key: 'permisoTaxi', url: ptUri, isWeb: isWebUrl(ptUri) }],
-      })
-    }
-
-    // If no documents found from steps, show raw DB fields
-    if (docList.length === 0) {
-      docList.push({
-        id: 'raw_info',
-        type: 'info',
-        name: 'Información del Registro',
-        status: 'pending',
-        uploadDate: driverData.created_at ? new Date(driverData.created_at).toLocaleDateString('es-MX') : '-',
-        data: {
-          'No. Económico': driverData.economico || '-',
-          'Licencia': driverData.license_number || '-',
-          'Vencimiento Licencia': driverData.license_expiry || '-',
-          'Marca': driverData.vehicle_brand || '-',
-          'Modelo': driverData.vehicle_model || '-',
-          'Año': driverData.vehicle_year || '-',
-          'Color': driverData.vehicle_color || '-',
-          'Placas': driverData.vehicle_plates || '-',
-        },
-        hasPhoto: false,
       })
     }
 
@@ -297,9 +284,14 @@ export default function VerifyDocumentsScreen() {
     }
   }
 
-  const driverName = driver?.user?.full_name || driver?.user?.name || 'Conductor'
-  const driverEmail = driver?.user?.email || '-'
-  const driverPhone = driver?.user?.phone || '-'
+  // Fallback name from documents.step1 if users.full_name is empty
+  const driverName = driver?.user?.full_name
+    || (driver?.documents?.step1
+      ? `${driver.documents.step1.nombres || ''} ${driver.documents.step1.apellidoPaterno || ''} ${driver.documents.step1.apellidoMaterno || ''}`.trim()
+      : '')
+    || 'Conductor'
+  const driverEmail = driver?.user?.email || driver?.documents?.step1?.email || '-'
+  const driverPhone = driver?.user?.phone || driver?.documents?.step1?.phoneNumber || '-'
   const driverStatus = driver?.status || 'pending'
   const statusBadge = getStatusBadge(driverStatus)
 
