@@ -54,14 +54,18 @@ export default function SupportTicketsScreen() {
     }
   }
 
-  // Fetch tickets from Supabase
+  // Fetch tickets from Supabase (join users for creator + assigned agent)
   const fetchTickets = async () => {
     try {
       setLoading(true)
 
       const { data: ticketsData, error } = await supabase
         .from('support_tickets')
-        .select('*')
+        .select(`
+          *,
+          user:users!user_id(id, full_name, email, phone, user_type),
+          assigned_agent:users!assigned_to(id, full_name)
+        `)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -440,9 +444,16 @@ export default function SupportTicketsScreen() {
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="bg-gray-50 rounded-lg p-3">
             <p className="text-xs text-gray-600 mb-1">Usuario</p>
-            <p className="text-sm font-semibold text-gray-900">{ticket.user?.full_name || 'Sin usuario'}</p>
+            <p className="text-sm font-semibold text-gray-900">
+              {ticket.user?.full_name || ticket.user?.email || `Usuario #${ticket.user_id?.slice(0, 6).toUpperCase() || '???'}`}
+            </p>
             <p className="text-xs text-gray-500">
-              {ticket.user_type === 'driver' ? 'Conductor' : 'Pasajero'}
+              {ticket.user_type === 'driver' ? '🚖 Conductor' : '👤 Pasajero'}
+              {ticket.user?.phone && ` · 📱 ${ticket.user.phone}`}
+              {ticket.user?.email && !ticket.user?.full_name && ` · ✉️ ${ticket.user.email}`}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              ID: {ticket.user_id || 'N/A'}
             </p>
           </div>
 
@@ -802,9 +813,16 @@ export default function SupportTicketsScreen() {
                   </div>
                   <p className="text-sm text-gray-500">
                     {selectedTicket.ticket_number || selectedTicket.id?.slice(0,8).toUpperCase()} &nbsp;·&nbsp;
-                    {selectedTicket.user_type === 'driver' ? 'Conductor' : 'Pasajero'} &nbsp;·&nbsp;
                     {getCategoryConfig(selectedTicket.category).icon} {getCategoryConfig(selectedTicket.category).label} &nbsp;·&nbsp;
                     {new Date(selectedTicket.created_at).toLocaleString('es-MX')}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1 font-medium">
+                    {selectedTicket.user?.full_name || selectedTicket.user?.email || `Usuario #${selectedTicket.user_id?.slice(0, 6).toUpperCase() || '???'}`}
+                    &nbsp;·&nbsp;
+                    {selectedTicket.user_type === 'driver' ? '🚖 Conductor' : '👤 Pasajero'}
+                    {selectedTicket.user?.phone && ` · 📱 ${selectedTicket.user.phone}`}
+                    {selectedTicket.user?.email && ` · ✉️ ${selectedTicket.user.email}`}
+                    &nbsp;·&nbsp;ID: {selectedTicket.user_id || 'N/A'}
                   </p>
                 </div>
                 <button onClick={handleCloseDetail} className="text-gray-400 hover:text-gray-700 text-3xl leading-none ml-4">
