@@ -201,14 +201,14 @@ export default function SystemAlertsScreen() {
           textColor: 'text-yellow-800',
           label: 'Disputa',
         }
-      case 'driver_debt':
+      case 'driver_credit_low':
         return {
-          icon: '💰',
-          color: 'red',
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200',
-          textColor: 'text-red-800',
-          label: 'Deuda Crítica',
+          icon: '�',
+          color: 'orange',
+          bgColor: 'bg-orange-50',
+          borderColor: 'border-orange-200',
+          textColor: 'text-orange-800',
+          label: 'Crédito Bajo',
         }
       case 'low_rating':
         return {
@@ -411,7 +411,7 @@ export default function SystemAlertsScreen() {
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
                 <span className="text-sm text-gray-600 font-medium">
-                  {stats.critical + stats.high} alertas críticas
+                  {(stats?.critical || 0) + (stats?.high || 0)} alertas críticas
                 </span>
               </div>
             </div>
@@ -425,7 +425,7 @@ export default function SystemAlertsScreen() {
             className="bg-white rounded-lg p-4 border-l-4 border-gray-500 text-left hover:shadow-md hover:bg-gray-50 transition-all cursor-pointer"
           >
             <p className="text-sm text-gray-600">Total Alertas</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-2xl font-bold text-gray-900">{stats?.total || 0}</p>
           </button>
 
           <button
@@ -433,7 +433,7 @@ export default function SystemAlertsScreen() {
             className="bg-white rounded-lg p-4 border-l-4 border-red-600 text-left hover:shadow-md hover:bg-red-50 transition-all cursor-pointer"
           >
             <p className="text-sm text-gray-600">Críticas</p>
-            <p className="text-2xl font-bold text-red-600">{stats.critical}</p>
+            <p className="text-2xl font-bold text-red-600">{stats?.critical || 0}</p>
           </button>
 
           <button
@@ -441,7 +441,7 @@ export default function SystemAlertsScreen() {
             className="bg-white rounded-lg p-4 border-l-4 border-red-500 text-left hover:shadow-md hover:bg-red-50 transition-all cursor-pointer"
           >
             <p className="text-sm text-gray-600">Altas</p>
-            <p className="text-2xl font-bold text-red-500">{stats.high}</p>
+            <p className="text-2xl font-bold text-red-500">{stats?.high || 0}</p>
           </button>
 
           <button
@@ -449,7 +449,7 @@ export default function SystemAlertsScreen() {
             className="bg-white rounded-lg p-4 border-l-4 border-orange-500 text-left hover:shadow-md hover:bg-orange-50 transition-all cursor-pointer"
           >
             <p className="text-sm text-gray-600">Medias</p>
-            <p className="text-2xl font-bold text-orange-500">{stats.medium}</p>
+            <p className="text-2xl font-bold text-orange-500">{stats?.medium || 0}</p>
           </button>
 
           <button
@@ -457,7 +457,7 @@ export default function SystemAlertsScreen() {
             className="bg-white rounded-lg p-4 border-l-4 border-gray-400 text-left hover:shadow-md hover:bg-gray-50 transition-all cursor-pointer"
           >
             <p className="text-sm text-gray-600">Bajas</p>
-            <p className="text-2xl font-bold text-gray-600">{stats.low}</p>
+            <p className="text-2xl font-bold text-gray-600">{stats?.low || 0}</p>
           </button>
         </div>
 
@@ -560,14 +560,14 @@ export default function SystemAlertsScreen() {
                   💳 Pagos
                 </button>
                 <button
-                  onClick={() => setFilterType('driver_debt')}
+                  onClick={() => setFilterType('driver_credit_low')}
                   className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
-                    filterType === 'driver_debt'
-                      ? 'bg-red-500 text-white'
+                    filterType === 'driver_credit_low'
+                      ? 'bg-orange-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  💰 Deudas
+                  � Crédito bajo
                 </button>
                 <button
                   onClick={() => setFilterType('low_rating')}

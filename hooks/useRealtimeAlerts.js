@@ -21,7 +21,7 @@ export const useRealtimeAlerts = () => {
     const { alerts: alertsData, stats: statsData } = await getActiveAlerts()
     if (alertsData) {
       setAlerts(alertsData)
-      setStats(statsData)
+      if (statsData) setStats(statsData)
       setLastUpdate(new Date())
     }
     setLoading(false)
