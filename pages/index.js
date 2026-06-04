@@ -52,22 +52,33 @@ export default function Dashboard() {
         .select('*', { count: 'exact', head: true })
         .in('status', ['requested', 'accepted', 'in_progress'])
 
-      // Fetch total drivers
-      const { count: totalDriversCount } = await supabase
-        .from('drivers')
-        .select('*', { count: 'exact', head: true })
+      // Fetch driver IDs that still have a user record
+      const { data: driverRows } = await supabase.from('drivers').select('id, status')
+      const validDriverIds = driverRows
+        ?.filter(d => d.id) // keep all; we validate existence via users join below
+        .map(d => d.id) || []
 
-      // Fetch approved drivers (connected)
-      const { count: connectedDriversCount } = await supabase
-        .from('drivers')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'approved')
+      // Validate which driver IDs still exist in users table
+      let validDriverStatuses = {}
+      if (validDriverIds.length > 0) {
+        const { data: userRows } = await supabase
+          .from('users')
+          .select('id')
+          .in('id', validDriverIds)
+        const validIds = new Set(userRows?.map(u => u.id) || [])
+        validDriverStatuses = driverRows
+          ?.filter(d => validIds.has(d.id))
+          .reduce((acc, d) => {
+            acc.total++
+            if (d.status === 'approved') acc.approved++
+            if (d.status === 'pending') acc.pending++
+            return acc
+          }, { total: 0, approved: 0, pending: 0 }) || { total: 0, approved: 0, pending: 0 }
+      }
 
-      // Fetch pending approvals
-      const { count: pendingApprovalsCount } = await supabase
-        .from('drivers')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
+      const totalDriversCount = validDriverStatuses.total
+      const connectedDriversCount = validDriverStatuses.approved
+      const pendingApprovalsCount = validDriverStatuses.pending
 
       // Fetch total passengers
       const { count: totalPassengersCount } = await supabase
@@ -80,23 +91,23 @@ export default function Dashboard() {
       today.setHours(0, 0, 0, 0)
       const { data: todayTrips } = await supabase
         .from('trips')
-        .select('fare')
+        .select('total_fare')
         .eq('status', 'completed')
         .gte('created_at', today.toISOString())
 
-      const todayRevenue = todayTrips?.reduce((sum, trip) => sum + (trip.fare || 0), 0) || 0
+      const todayRevenue = todayTrips?.reduce((sum, trip) => sum + (trip.total_fare || 0), 0) || 0
 
       // Fetch yesterday's revenue
       const yesterday = new Date(today)
       yesterday.setDate(yesterday.getDate() - 1)
       const { data: yesterdayTrips } = await supabase
         .from('trips')
-        .select('fare')
+        .select('total_fare')
         .eq('status', 'completed')
         .gte('created_at', yesterday.toISOString())
         .lt('created_at', today.toISOString())
 
-      const yesterdayRevenue = yesterdayTrips?.reduce((sum, trip) => sum + (trip.fare || 0), 0) || 0
+      const yesterdayRevenue = yesterdayTrips?.reduce((sum, trip) => sum + (trip.total_fare || 0), 0) || 0
 
       // Fetch new passengers today
       const { count: newPassengersCount } = await supabase
