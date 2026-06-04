@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/router'
+import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import ProtectedRoute from './ProtectedRoute'
 import AdminNotificationToast from './AdminNotificationToast'
 import { useAdminNotifications } from '../hooks/useAdminNotifications'
+
+const SIDEBAR_SCROLL_KEY = 'admin_sidebar_scroll'
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -12,6 +15,46 @@ export default function DashboardLayout({ children }) {
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const { unreadCount, latestTicket, showNotification, dismissNotification } = useAdminNotifications(user?.id)
+  const navRef = useRef(null)
+
+  // Restaurar scroll del sidebar al montar
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem(SIDEBAR_SCROLL_KEY)
+    if (navRef.current && savedScroll !== null) {
+      navRef.current.scrollTop = parseInt(savedScroll, 10)
+    } else if (navRef.current) {
+      // Si no hay scroll guardado, hacer visible el enlace activo
+      const activeLink = navRef.current.querySelector('a.bg-primary')
+      if (activeLink) {
+        activeLink.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      }
+    }
+  }, [router.pathname])
+
+  // Guardar scroll del sidebar continuamente (navegación Next.js + reload)
+  useEffect(() => {
+    let timeout
+    const saveScroll = () => {
+      clearTimeout(timeout)
+      timeout = setTimeout(() => {
+        if (navRef.current) {
+          sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(navRef.current.scrollTop))
+        }
+      }, 100)
+    }
+
+    const el = navRef.current
+    if (el) {
+      el.addEventListener('scroll', saveScroll)
+    }
+    window.addEventListener('beforeunload', saveScroll)
+
+    return () => {
+      clearTimeout(timeout)
+      if (el) el.removeEventListener('scroll', saveScroll)
+      window.removeEventListener('beforeunload', saveScroll)
+    }
+  }, [])
 
   const handleLogout = async () => {
     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
@@ -44,9 +87,9 @@ export default function DashboardLayout({ children }) {
         </div>
 
         {/* Scrollable Navigation */}
-        <nav className="flex-1 overflow-y-auto px-6 pb-4 space-y-1">
+        <nav ref={navRef} className="flex-1 overflow-y-auto px-6 pb-4 space-y-1">
           {/* Dashboard */}
-            <a
+            <Link
               href="/"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/'
@@ -56,11 +99,11 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">📊</span>
               {sidebarOpen && <span>Tablero</span>}
-            </a>
+            </Link>
 
             {/* Gestión de Usuarios */}
             {sidebarOpen && <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Usuarios</div>}
-            <a
+            <Link
               href="/drivers"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/drivers'
@@ -70,8 +113,19 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🚕</span>
               {sidebarOpen && <span>Conductores</span>}
-            </a>
-            <a
+            </Link>
+            <Link
+              href="/driver-metrics"
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                router.pathname === '/driver-metrics'
+                  ? 'bg-primary text-black font-medium'
+                  : 'hover:bg-gray-800'
+              }`}
+            >
+              <span className="text-xl">📊</span>
+              {sidebarOpen && <span>Métricas Conductores</span>}
+            </Link>
+            <Link
               href="/pending-approvals"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/pending-approvals'
@@ -81,8 +135,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">⏳</span>
               {sidebarOpen && <span>Aprobaciones</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/blocked-drivers"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/blocked-drivers'
@@ -92,8 +146,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🚫</span>
               {sidebarOpen && <span>Bloqueados</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/passengers"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/passengers'
@@ -103,11 +157,11 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">👥</span>
               {sidebarOpen && <span>Pasajeros</span>}
-            </a>
+            </Link>
 
             {/* Operaciones */}
             {sidebarOpen && <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Operaciones</div>}
-            <a
+            <Link
               href="/map"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/map'
@@ -117,8 +171,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🗺️</span>
               {sidebarOpen && <span>Mapa en Vivo</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/trips"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/trips'
@@ -128,8 +182,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">📋</span>
               {sidebarOpen && <span>Viajes Activos</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/past-trips"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/past-trips'
@@ -139,11 +193,11 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">📊</span>
               {sidebarOpen && <span>Viajes Pasados</span>}
-            </a>
+            </Link>
 
             {/* Finanzas */}
             {sidebarOpen && <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Finanzas</div>}
-            <a
+            <Link
               href="/payments"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/payments'
@@ -153,8 +207,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">💳</span>
               {sidebarOpen && <span>Pagos</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/financial-report"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/financial-report'
@@ -164,8 +218,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">💰</span>
               {sidebarOpen && <span>Reportes</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/fare-configuration"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/fare-configuration'
@@ -175,8 +229,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">💵</span>
               {sidebarOpen && <span>Tarifas</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/invoices"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/invoices'
@@ -186,8 +240,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🧾</span>
               {sidebarOpen && <span>Facturas CFDI</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/rewards"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/rewards'
@@ -197,8 +251,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🎁</span>
               {sidebarOpen && <span>Recompensas</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/assign-rewards"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/assign-rewards'
@@ -208,8 +262,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🏆</span>
               {sidebarOpen && <span>Asignar Bonos</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/disputes"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/disputes'
@@ -219,8 +273,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">⚖️</span>
               {sidebarOpen && <span>Disputas</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/reconciliation"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/reconciliation'
@@ -230,8 +284,19 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🏦</span>
               {sidebarOpen && <span>Conciliación</span>}
-            </a>
-            <a
+            </Link>
+            <Link
+              href="/bank-reconciliation"
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                router.pathname === '/bank-reconciliation'
+                  ? 'bg-primary text-black font-medium'
+                  : 'hover:bg-gray-800'
+              }`}
+            >
+              <span className="text-xl">💳</span>
+              {sidebarOpen && <span>Reconciliación Bancaria</span>}
+            </Link>
+            <Link
               href="/debt-payments"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/debt-payments'
@@ -241,11 +306,11 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">💸</span>
               {sidebarOpen && <span>Pagos Deuda</span>}
-            </a>
+            </Link>
 
             {/* Marketing y Soporte */}
             {sidebarOpen && <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Marketing</div>}
-            <a
+            <Link
               href="/advertising-campaigns"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/advertising-campaigns'
@@ -255,8 +320,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">📢</span>
               {sidebarOpen && <span>Publicidad</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/promotions"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/promotions'
@@ -266,8 +331,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🎁</span>
               {sidebarOpen && <span>Promociones</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/support-tickets"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/support-tickets'
@@ -298,8 +363,8 @@ export default function DashboardLayout({ children }) {
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/chatbot"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/chatbot'
@@ -309,11 +374,11 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🤖</span>
               {sidebarOpen && <span>Chatbot</span>}
-            </a>
+            </Link>
 
             {/* Sistema */}
             {sidebarOpen && <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Sistema</div>}
-            <a
+            <Link
               href="/alerts"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/alerts'
@@ -323,8 +388,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🚨</span>
               {sidebarOpen && <span>Alertas</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/backup-security"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/backup-security'
@@ -334,8 +399,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">💾</span>
               {sidebarOpen && <span>Backups</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/security"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/security'
@@ -345,8 +410,8 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">🔐</span>
               {sidebarOpen && <span>Seguridad MFA</span>}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/platform-configuration"
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                 router.pathname === '/platform-configuration'
@@ -356,7 +421,7 @@ export default function DashboardLayout({ children }) {
             >
               <span className="text-xl">⚙️</span>
               {sidebarOpen && <span>Configuración</span>}
-            </a>
+            </Link>
           </nav>
 
           {/* User Info & Logout */}
